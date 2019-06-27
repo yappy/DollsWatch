@@ -10,7 +10,8 @@
 // The setup routine runs once when M5Stack starts up
 void setup() {
 	// Initialize the M5Stack object
-	M5.begin();
+	// LCD, SD, Serial, I2C
+	M5.begin(true, true, false, false);
 
 	// LCD display
 	M5.Lcd.setTextSize(2);
@@ -25,10 +26,10 @@ void setup() {
 	esp_chip_info(&chip);
 	M5.Lcd.printf("Rev: %d, Core: %d\n", chip.revision, chip.cores);
 
-	M5.Lcd.print("ESP-IDF: ");
-	M5.Lcd.println(esp_get_idf_version());
-	M5.Lcd.print("App: ");
-	M5.Lcd.println(PROJECT_VER);
+	M5.Lcd.printf("ESP-IDF: %s\n", esp_get_idf_version());
+	M5.Lcd.printf("arduino-esp32: %s\n", ARDUINO_VER);
+	M5.Lcd.printf("M5Stack: %s\n", M5STACK_VER);
+	M5.Lcd.printf("App: %s\n", PROJECT_VER);
 }
 
 // The loop routine runs over and over again forever
