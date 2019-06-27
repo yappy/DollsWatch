@@ -8,13 +8,22 @@
 #endif
 
 // The setup routine runs once when M5Stack starts up
-void setup(){
-
+void setup() {
 	// Initialize the M5Stack object
 	M5.begin();
 
 	// LCD display
+	M5.Lcd.setTextSize(2);
 	M5.Lcd.println("Hello World");
+
+	uint8_t mac[6] = { 0 };
+	esp_efuse_mac_get_default(mac);
+	M5.Lcd.printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
+		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+	esp_chip_info_t chip;
+	esp_chip_info(&chip);
+	M5.Lcd.printf("Rev: %d, Core: %d\n", chip.revision, chip.cores);
 
 	M5.Lcd.print("ESP-IDF: ");
 	M5.Lcd.println(esp_get_idf_version());
