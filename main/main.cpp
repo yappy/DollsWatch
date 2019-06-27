@@ -18,6 +18,8 @@ void setup(){
 
 	M5.Lcd.print("ESP-IDF: ");
 	M5.Lcd.println(esp_get_idf_version());
+	M5.Lcd.print("App: ");
+	M5.Lcd.println(PROJECT_VER);
 }
 
 // The loop routine runs over and over again forever
