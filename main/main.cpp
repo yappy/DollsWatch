@@ -1,5 +1,6 @@
 #include <M5Stack.h>
 #include <esp_system.h>
+#include <time.h>
 
 class Screen {
 public:
@@ -12,7 +13,8 @@ public:
 
 	virtual void setup() {}
 	virtual void input(int btn) {}
-	virtual void draw() { M5.Lcd.clear(); }
+	virtual void frame() {}
+	virtual void redraw() { M5.Lcd.clear(); }
 
 	void repaint() { m_repaint = true; }
 	void clearRepaint() { m_repaint = false; }
@@ -48,7 +50,7 @@ public:
 			break;
 		}
 	}
-	void draw() override
+	void redraw() override
 	{
 		M5.Lcd.clear();
 		M5.Lcd.setTextSize(2);
@@ -90,17 +92,58 @@ public:
 
 	void setup() override
 	{
+		memset(m_cache, 0, sizeof(m_cache));
 	}
-	void draw() override
+	void frame() override
+	{
+		time_t t;
+		struct tm *tm;
+		t = time(nullptr);
+		tm = localtime(&t);
+
+		char str[3][BufSize];
+		const char *fmt[3] = { "%H:%M:%S", "%Y %m/%d", "%a" };
+		for (int i = 0; i < 3; i++) {
+			size_t len = strftime(str[i], sizeof(str[i]), fmt[i], tm);
+			if (len == 0) {
+				return;
+			}
+		}
+
+		M5.Lcd.setTextSize(2);
+		const uint32_t H = M5.Lcd.height();
+		const uint32_t W = M5.Lcd.width();
+		const uint32_t TextH = M5.Lcd.fontHeight();
+		const uint32_t Pad = 4;
+		M5.Lcd.setTextDatum(BR_DATUM);
+		for (int i = 0; i < 3; i++) {
+			if (strcmp(str[i], m_cache[i]) == 0) {
+				continue;
+			}
+			strcpy(m_cache[i], str[i]);
+
+			M5.Lcd.drawString(str[i],
+				W - Pad,
+				H - (3 - i - 1) * TextH - Pad);
+		}
+	}
+	void redraw() override
 	{
 		const char *FileName = "/yappy_house_240.jpg";
 
 		M5.Lcd.clear();
 
-		M5.Lcd.println("Error: not found");
-		M5.Lcd.println(FileName);
-		M5.Lcd.drawJpgFile(SD, FileName, 0, 0, 240, 240);
+		M5.Lcd.setCursor(40, 0);
+		M5.Lcd.printf("Error: %s", FileName);
+		M5.Lcd.drawJpgFile(SD, FileName, 40, 0, 240, 240);
+
+		// clear cache
+		memset(m_cache, 0, sizeof(m_cache));
 	}
+
+private:
+	static const int BufSize = 16;
+	char m_cache[3][BufSize];
 };
 
 namespace
@@ -108,7 +151,7 @@ namespace
 	InfoScreen s_info;
 	ClockScreen s_clock;
 
-	uint32_t s_screen_idx = 0;
+	uint32_t s_screen_idx = 1;
 	std::array<Screen *, 2> s_screen_list = {
 		&s_info,
 		&s_clock,
@@ -128,6 +171,12 @@ namespace
 		s_screen_idx++;
 		s_screen_idx %= s_screen_list.size();
 	}
+	inline void clear_draw_state()
+	{
+		M5.Lcd.setCursor(0, 0);
+		M5.Lcd.setTextSize(1);
+		M5.Lcd.setTextDatum(0);
+	}
 } // namespace
 
 // The main task
@@ -139,7 +188,6 @@ void mainTask(void *pvParameters)
 
 	const uint32_t W = M5.Lcd.width();
 	const uint32_t H = M5.Lcd.height();
-	// (?)
 	const uint32_t TextH = M5.Lcd.fontHeight() * 2;
 
 	for (auto &pscr : s_screen_list) {
@@ -182,16 +230,22 @@ void mainTask(void *pvParameters)
 				if (M5.BtnC.wasReleased()) {
 					cur_screen().input(Screen::INPUT_C);
 				}
+				clear_draw_state();
+				cur_screen().frame();
 			}
 		}
 		// reset x, y, font
-		M5.Lcd.setCursor(0, 0, 1);
+		clear_draw_state();
 		if (cur_screen().isRepaintRequired()) {
 			cur_screen().clearRepaint();
-			cur_screen().draw();
+
+			clear_draw_state();
+			cur_screen().redraw();
+
 			if (move_state) {
-				M5.Lcd.setCursor(0, 0, 1);
+				clear_draw_state();
 				M5.Lcd.fillRect(0, H - TextH * 2, W, TextH * 2, TFT_GREEN);
+				M5.Lcd.setTextSize(2);
 				M5.Lcd.setTextDatum(BC_DATUM);
 				char page_str[12];
 				sprintf(page_str, "%u", s_screen_idx);
@@ -199,7 +253,7 @@ void mainTask(void *pvParameters)
 				M5.Lcd.drawString("<- moving ->", M5.Lcd.width() / 2, H);
 			}
 		}
-		// vTaskDelay() - ms version
+		// vTaskDelay() ms version
 		delay(16);
 	}
 }
