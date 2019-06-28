@@ -26,9 +26,13 @@ public:
 
 	void setup() override
 	{
+		m_battery_level = M5.Power.getBatteryLevel();
+		m_is_charging = M5.Power.isCharging();
+
 		esp_efuse_mac_get_default(m_mac);
 		esp_chip_info(&m_chip_info);
 		m_cpu_freq_mhz = ESP.getCpuFreqMHz();
+
 		m_heap_total = ESP.getHeapSize();
 		m_heap_free = ESP.getFreeHeap();
 		m_spiram_total = ESP.getPsramSize();
@@ -52,6 +56,10 @@ public:
 		M5.Lcd.println("Press center to refresh");
 		M5.Lcd.println();
 
+		M5.Lcd.printf("Battery: %d%%\n", m_battery_level);
+		M5.Lcd.printf("Charging: %s\n", m_is_charging ? "Yes" : "No");
+		M5.Lcd.println();
+
 		M5.Lcd.printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			m_mac[0], m_mac[1], m_mac[2], m_mac[3], m_mac[4], m_mac[5]);
 		M5.Lcd.printf("Chip Rev: %d\nCore: %d, %u MHz\n",
@@ -70,6 +78,8 @@ public:
 	}
 
 private:
+	int m_battery_level;
+	bool m_is_charging;
 	uint8_t m_mac[6];
 	esp_chip_info_t m_chip_info;
 	uint32_t m_cpu_freq_mhz;
@@ -178,6 +188,7 @@ void mainTask(void *pvParameters)
 	// Initialize the M5Stack object
 	// LCD, SD, Serial, I2C
 	M5.begin(true, true, true, false);
+	M5.Power.begin();
 
 	const uint32_t W = M5.Lcd.width();
 	const uint32_t H = M5.Lcd.height();
