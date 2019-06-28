@@ -93,11 +93,13 @@ public:
 	}
 	void draw() override
 	{
+		const char *FileName = "/yappy_house_240.jpg";
+
 		M5.Lcd.clear();
 
-		M5.Lcd.setTextSize(2);
-
-		M5.Lcd.println("Hello World");
+		M5.Lcd.println("Error: not found");
+		M5.Lcd.println(FileName);
+		M5.Lcd.drawJpgFile(SD, FileName, 0, 0, 240, 240);
 	}
 };
 
