@@ -9,7 +9,7 @@ public:
 	virtual void setup() {}
 	virtual void enter() {}
 	virtual void leave() {}
-	virtual void draw() {}
+	virtual void draw() { M5.Lcd.fillScreen(TFT_BLACK); }
 	virtual void input(int key) {}
 
 	void repaint() { m_repaint = true; }
@@ -25,16 +25,18 @@ public:
 	InfoScreen() = default;
 	virtual ~InfoScreen() = default;
 
-	virtual void setup() override
+	void setup() override
 	{
 		esp_efuse_mac_get_default(m_mac);
 		esp_chip_info(&m_chip_info);
 	}
-	virtual void draw()
+	void draw() override
 	{
+		M5.Lcd.fillScreen(TFT_BLACK);
+
 		M5.Lcd.setTextSize(2);
 
-		M5.Lcd.println("Hello World");
+		M5.Lcd.println("Information\n");
 
 		M5.Lcd.printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			m_mac[0], m_mac[1], m_mac[2], m_mac[3], m_mac[4], m_mac[5]);
@@ -53,17 +55,48 @@ private:
 	esp_chip_info_t m_chip_info;
 };
 
+class ClockScreen : public Screen {
+public:
+	ClockScreen() = default;
+	virtual ~ClockScreen() = default;
+
+	void setup() override
+	{
+	}
+	void draw() override
+	{
+		M5.Lcd.fillScreen(TFT_BLACK);
+
+		M5.Lcd.setTextSize(2);
+
+		M5.Lcd.println("Hello World");
+	}
+};
+
 namespace
 {
 	InfoScreen s_info;
+	ClockScreen s_clock;
 
 	uint32_t s_screen_idx = 0;
 	std::array<Screen *, 2> s_screen_list = {
-		&s_info
+		&s_info,
+		&s_clock,
 	};
 	inline Screen &cur_screen()
 	{
 		return *s_screen_list[s_screen_idx];
+	}
+	inline void move_left()
+	{
+		s_screen_idx += s_screen_list.size();
+		s_screen_idx--;
+		s_screen_idx %= s_screen_list.size();
+	}
+	inline void move_right()
+	{
+		s_screen_idx++;
+		s_screen_idx %= s_screen_list.size();
 	}
 } // namespace
 
@@ -73,15 +106,45 @@ void mainTask(void *pvParameters)
 	// Initialize the M5Stack object
 	// LCD, SD, Serial, I2C
 	M5.begin(true, true, true, false);
+
+	bool move_state = false;
 	cur_screen().repaint();
 	while (1) {
+		// update GPIO state etc.
 		M5.update();
-		if (cur_screen().isRepaintRequired()) {
-			// x, y, font
-			M5.Lcd.setCursor(0, 0, 1);
-			cur_screen().draw();
-			cur_screen().clearRepaint();
+		// reset x, y, font
+		M5.Lcd.setCursor(0, 0, 1);
+		if (move_state) {
+			// moveing state
+			if (M5.BtnB.wasReleased()) {
+				move_state = false;
+				cur_screen().repaint();
+			}
+			else if (M5.BtnA.wasReleased()) {
+				move_left();
+				cur_screen().repaint();
+			}
+			else if (M5.BtnC.wasReleased()) {
+				move_right();
+				cur_screen().repaint();
+			}
 		}
+		else {
+			// normal state
+			if (M5.BtnB.pressedFor(1000)) {
+				move_state = true;
+				cur_screen().repaint();
+			}
+		}
+		if (cur_screen().isRepaintRequired()) {
+			cur_screen().clearRepaint();
+			cur_screen().draw();
+			if (move_state) {
+				M5.Lcd.println("moving...");
+			}
+		}
+		// vTaskDelay() - ms version
+		delay(16);
 	}
 }
 
