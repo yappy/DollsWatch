@@ -3,14 +3,16 @@
 
 class Screen {
 public:
+	static const int INPUT_A = 1;
+	static const int INPUT_B = 2;
+	static const int INPUT_C = 3;
+
 	Screen() = default;
 	virtual ~Screen() = default;
 
 	virtual void setup() {}
-	virtual void enter() {}
-	virtual void leave() {}
+	virtual void input(int btn) {}
 	virtual void draw() { M5.Lcd.clear(); }
-	virtual void input(int key) {}
 
 	void repaint() { m_repaint = true; }
 	void clearRepaint() { m_repaint = false; }
@@ -29,20 +31,42 @@ public:
 	{
 		esp_efuse_mac_get_default(m_mac);
 		esp_chip_info(&m_chip_info);
+		m_cpu_freq_mhz = ESP.getCpuFreqMHz();
+		m_heap_total = ESP.getHeapSize();
+		m_heap_free = ESP.getFreeHeap();
+		m_spiram_total = ESP.getPsramSize();
+		m_spiram_free = ESP.getFreePsram();
+		m_flash_size = ESP.getFlashChipSize();
+		m_flash_speed = ESP.getFlashChipSpeed();
+	}
+	void input(int btn)
+	{
+		switch (btn) {
+		case Screen::INPUT_B:
+			setup();
+			repaint();
+			break;
+		}
 	}
 	void draw() override
 	{
 		M5.Lcd.clear();
-
 		M5.Lcd.setTextSize(2);
 
-		M5.Lcd.println("Information\n");
+		M5.Lcd.println("System information");
+		M5.Lcd.println("Press center to refresh");
+		M5.Lcd.println();
 
 		M5.Lcd.printf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\n",
 			m_mac[0], m_mac[1], m_mac[2], m_mac[3], m_mac[4], m_mac[5]);
+		M5.Lcd.printf("Chip Rev: %d\nCore: %d, %u MHz\n",
+			m_chip_info.revision, m_chip_info.cores, m_cpu_freq_mhz);
+		M5.Lcd.println();
 
-		M5.Lcd.printf("Rev: %d, Core: %d\n",
-			m_chip_info.revision, m_chip_info.cores);
+		M5.Lcd.println("Free Memory");
+		M5.Lcd.printf("Heap   : %7u/%7u\n", m_heap_free, m_heap_total);
+		M5.Lcd.printf("SPI RAM: %7u/%7u\n", m_spiram_free, m_spiram_total);
+		M5.Lcd.println();
 
 		M5.Lcd.printf("ESP-IDF: %s\n", esp_get_idf_version());
 		M5.Lcd.printf("arduino-esp32: %s\n", ARDUINO_VER);
@@ -53,6 +77,10 @@ public:
 private:
 	uint8_t m_mac[6];
 	esp_chip_info_t m_chip_info;
+	uint32_t m_cpu_freq_mhz;
+	uint32_t m_heap_total, m_heap_free;
+	uint32_t m_spiram_total, m_spiram_free;
+	uint32_t m_flash_size, m_flash_speed;
 };
 
 class ClockScreen : public Screen {
@@ -141,6 +169,17 @@ void mainTask(void *pvParameters)
 			if (M5.BtnB.pressedFor(1000)) {
 				move_state = true;
 				cur_screen().repaint();
+			}
+			else {
+				if (M5.BtnA.wasReleased()) {
+					cur_screen().input(Screen::INPUT_A);
+				}
+				if (M5.BtnB.wasReleased()) {
+					cur_screen().input(Screen::INPUT_B);
+				}
+				if (M5.BtnC.wasReleased()) {
+					cur_screen().input(Screen::INPUT_C);
+				}
 			}
 		}
 		// reset x, y, font
