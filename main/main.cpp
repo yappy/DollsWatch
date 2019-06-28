@@ -9,7 +9,7 @@ public:
 	virtual void setup() {}
 	virtual void enter() {}
 	virtual void leave() {}
-	virtual void draw() { M5.Lcd.fillScreen(TFT_BLACK); }
+	virtual void draw() { M5.Lcd.clear(); }
 	virtual void input(int key) {}
 
 	void repaint() { m_repaint = true; }
@@ -32,7 +32,7 @@ public:
 	}
 	void draw() override
 	{
-		M5.Lcd.fillScreen(TFT_BLACK);
+		M5.Lcd.clear();
 
 		M5.Lcd.setTextSize(2);
 
@@ -65,7 +65,7 @@ public:
 	}
 	void draw() override
 	{
-		M5.Lcd.fillScreen(TFT_BLACK);
+		M5.Lcd.clear();
 
 		M5.Lcd.setTextSize(2);
 
@@ -107,13 +107,16 @@ void mainTask(void *pvParameters)
 	// LCD, SD, Serial, I2C
 	M5.begin(true, true, true, false);
 
+	const uint32_t W = M5.Lcd.width();
+	const uint32_t H = M5.Lcd.height();
+	// (?)
+	const uint32_t TextH = M5.Lcd.fontHeight() * 2;
+
 	bool move_state = false;
 	cur_screen().repaint();
 	while (1) {
 		// update GPIO state etc.
 		M5.update();
-		// reset x, y, font
-		M5.Lcd.setCursor(0, 0, 1);
 		if (move_state) {
 			// moveing state
 			if (M5.BtnB.wasReleased()) {
@@ -136,11 +139,19 @@ void mainTask(void *pvParameters)
 				cur_screen().repaint();
 			}
 		}
+		// reset x, y, font
+		M5.Lcd.setCursor(0, 0, 1);
 		if (cur_screen().isRepaintRequired()) {
 			cur_screen().clearRepaint();
 			cur_screen().draw();
 			if (move_state) {
-				M5.Lcd.println("moving...");
+				M5.Lcd.setCursor(0, 0, 1);
+				M5.Lcd.fillRect(0, H - TextH * 2, W, TextH * 2, TFT_GREEN);
+				M5.Lcd.setTextDatum(BC_DATUM);
+				char page_str[12];
+				sprintf(page_str, "%u", s_screen_idx);
+				M5.Lcd.drawString(page_str, M5.Lcd.width() / 2, H - TextH);
+				M5.Lcd.drawString("<- moving ->", M5.Lcd.width() / 2, H);
 			}
 		}
 		// vTaskDelay() - ms version
