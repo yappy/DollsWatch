@@ -4,15 +4,10 @@
 
 class Screen {
 public:
-	static const int INPUT_A = 1;
-	static const int INPUT_B = 2;
-	static const int INPUT_C = 3;
-
 	Screen() = default;
 	virtual ~Screen() = default;
 
 	virtual void setup() {}
-	virtual void input(int btn) {}
 	virtual void frame() {}
 	virtual void redraw() { M5.Lcd.clear(); }
 
@@ -41,13 +36,11 @@ public:
 		m_flash_size = ESP.getFlashChipSize();
 		m_flash_speed = ESP.getFlashChipSpeed();
 	}
-	void input(int btn)
+	void frame() override
 	{
-		switch (btn) {
-		case Screen::INPUT_B:
+		if (M5.BtnB.wasReleased()) {
 			setup();
 			repaint();
-			break;
 		}
 	}
 	void redraw() override
@@ -221,15 +214,6 @@ void mainTask(void *pvParameters)
 				cur_screen().repaint();
 			}
 			else {
-				if (M5.BtnA.wasReleased()) {
-					cur_screen().input(Screen::INPUT_A);
-				}
-				if (M5.BtnB.wasReleased()) {
-					cur_screen().input(Screen::INPUT_B);
-				}
-				if (M5.BtnC.wasReleased()) {
-					cur_screen().input(Screen::INPUT_C);
-				}
 				clear_draw_state();
 				cur_screen().frame();
 			}
