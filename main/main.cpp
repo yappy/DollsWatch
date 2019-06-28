@@ -26,6 +26,8 @@ public:
 
 	void setup() override
 	{
+		m_pos = 0;
+
 		m_battery_level = M5.Power.getBatteryLevel();
 		m_is_charging = M5.Power.isCharging();
 
@@ -46,14 +48,25 @@ public:
 			setup();
 			repaint();
 		}
+		if (M5.BtnA.wasReleased()) {
+			m_pos++;
+			repaint();
+		}
+		if (M5.BtnC.wasReleased()) {
+			m_pos--;
+			repaint();
+		}
 	}
 	void redraw() override
 	{
 		M5.Lcd.clear();
 		M5.Lcd.setTextSize(2);
+		const int TextH = M5.Lcd.fontHeight();
+		M5.Lcd.setCursor(0, m_pos * TextH);
 
 		M5.Lcd.println("System information");
 		M5.Lcd.println("Press center to refresh");
+		M5.Lcd.println("Press left/right to move");
 		M5.Lcd.println();
 
 		M5.Lcd.printf("Battery: %d%%\n", m_battery_level);
@@ -78,6 +91,8 @@ public:
 	}
 
 private:
+	int m_pos;
+
 	int m_battery_level;
 	bool m_is_charging;
 	uint8_t m_mac[6];
