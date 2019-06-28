@@ -112,6 +112,10 @@ void mainTask(void *pvParameters)
 	// (?)
 	const uint32_t TextH = M5.Lcd.fontHeight() * 2;
 
+	for (auto &pscr : s_screen_list) {
+		pscr->setup();
+	}
+
 	bool move_state = false;
 	cur_screen().repaint();
 	while (1) {
