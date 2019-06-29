@@ -1,5 +1,5 @@
 #include <M5Stack.h>
-
+#include "conf.h"
 #include "app_info.h"
 #include "app_clock.h"
 
@@ -106,13 +106,14 @@ static void mainTask(void *pvParameters)
 			}
 		}
 		// vTaskDelay() ms version
-		delay(16);
+		delay(MAIN_LOOP_SLEEP);
 	}
 }
 
 extern "C" void app_main()
 {
 	initArduino();
-	xTaskCreateUniversal(mainTask, "mainTask", 8192, NULL, 1, NULL,
-		CONFIG_ARDUINO_RUNNING_CORE);
+	xTaskCreateUniversal(mainTask, "mainTask",
+		MAIN_TASK_STACK_SIZE, NULL, MAIN_TASK_PRIORITY, NULL,
+		MAIN_TASK_CORE);
 }
