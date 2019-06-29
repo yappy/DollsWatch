@@ -2,15 +2,18 @@
 #include "conf.h"
 #include "app_info.h"
 #include "app_clock.h"
+#include "app_wifi_client.h"
 
 namespace {
 	InfoApp s_info;
 	ClockApp s_clock;
+	WifiClientApp s_wifi_client;
 
-	uint32_t s_app_idx = 1;
-	std::array<App *, 2> s_app_list = {
+	uint32_t s_app_idx = 2;
+	std::array<App *, 3> s_app_list = {
 		&s_info,
 		&s_clock,
+		&s_wifi_client,
 	};
 
 	inline App &cur_app()
