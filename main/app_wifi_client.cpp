@@ -43,7 +43,7 @@ void WifiClientApp::eh_sta_start()
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
 	m_status.dirty = true;
 	m_status.started = true;
-	//m_status.connect_failed = false;
+	m_status.connect_failed = false;
 	xSemaphoreGive(m_mtx);
 
 	ESP_ERROR_CHECK(esp_wifi_connect());
@@ -85,7 +85,7 @@ void WifiClientApp::eh_sta_disconnected()
 
 void WifiClientApp::eh_sta_got_ip()
 {
-
+	configTime(9 * 3600, 0, "ntp.jst.mfeed.ad.jp");
 }
 
 void WifiClientApp::eh_sta_lost_ip()
@@ -95,6 +95,8 @@ void WifiClientApp::eh_sta_lost_ip()
 
 void WifiClientApp::setup()
 {
+	load_config_file();
+
 	m_mtx = xSemaphoreCreateMutex();
 	assert(m_mtx != nullptr);
 
@@ -108,8 +110,10 @@ void WifiClientApp::setup()
 
 	wifi_config_t wifi_config;
 	memset(&wifi_config, 0, sizeof(wifi_config));
-	strcpy((char *)wifi_config.sta.ssid, "?????");
-	strcpy((char *)wifi_config.sta.password, "?????");
+	if (m_conf_count > 0) {
+		strcpy((char *)wifi_config.sta.ssid, m_conf[0].ssid);
+		strcpy((char *)wifi_config.sta.password, m_conf[0].pass);
+	}
 
 	// station (client) mode
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -139,10 +143,50 @@ void WifiClientApp::redraw()
 {
 	M5.Lcd.clear();
 	M5.Lcd.setTextSize(2);
-
 	M5.Lcd.println("Wifi client");
+
+	M5.Lcd.setTextSize(1);
+	for (int i = 0; i < m_conf_count; i++) {
+		M5.Lcd.printf("%d: %s\n", i + 1, m_conf[i].ssid);
+	}
 
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
 	m_status.dirty = true;
 	xSemaphoreGive(m_mtx);
+}
+
+void WifiClientApp::load_config_file()
+{
+	m_conf_count = 0;
+
+	SDFile file = SD.open("/wifi.txt", FILE_READ);
+	if (!file) {
+		return;
+	}
+	auto read_line = [&file](char *buf, size_t bufsize) {
+		size_t i = 0;
+		int c;
+		while ((c = file.read()) >= 0) {
+			if (c == '\r') {
+				continue;
+			}
+			if (c == '\n') {
+				break;
+			}
+			// i < bufsize - 1
+			if (i + 1 < bufsize) {
+				buf[i] = c;
+				i++;
+			}
+		}
+		buf[i] = '\0';
+	};
+	while (m_conf_count < ConfigMax && file.available() > 0) {
+		WifiConfig conf;
+		read_line(conf.ssid, sizeof(conf.ssid));
+		read_line(conf.pass, sizeof(conf.pass));
+
+		m_conf[m_conf_count] = conf;
+		m_conf_count++;
+	}
 }
