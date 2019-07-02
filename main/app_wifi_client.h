@@ -2,6 +2,7 @@
 #define APP_WIFI_CLIENT_H_
 
 #include "app.h"
+#include "http_server.h"
 #include <esp_system.h>
 #include <esp_wifi.h>
 #include <esp_event.h>
@@ -46,6 +47,7 @@ public:
 private:
 	xSemaphoreHandle m_mtx;
 	WifiStatus m_status;
+	HttpServer m_http_server;
 
 	void eh_sta_start();
 	void eh_sta_stop();

@@ -86,11 +86,12 @@ void WifiClientApp::eh_sta_disconnected()
 void WifiClientApp::eh_sta_got_ip()
 {
 	configTime(9 * 3600, 0, "ntp.jst.mfeed.ad.jp");
+	m_http_server.start();
 }
 
 void WifiClientApp::eh_sta_lost_ip()
 {
-
+	m_http_server.stop();
 }
 
 void WifiClientApp::setup()
