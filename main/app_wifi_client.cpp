@@ -26,7 +26,7 @@ int WifiClientApp::event_handler(void *ctx, system_event_t *event)
 		break;
 	case SYSTEM_EVENT_STA_GOT_IP:
 		puts("GOT IP");
-		self->eh_sta_got_ip();
+		self->eh_sta_got_ip(&event->event_info.got_ip);
 		break;
 	case SYSTEM_EVENT_STA_LOST_IP:
 		puts("LOST IP");
@@ -43,7 +43,6 @@ void WifiClientApp::eh_sta_start()
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
 	m_status.dirty = true;
 	m_status.started = true;
-	m_status.connect_failed = false;
 	xSemaphoreGive(m_mtx);
 
 	ESP_ERROR_CHECK(esp_wifi_connect());
@@ -71,7 +70,6 @@ void WifiClientApp::eh_sta_disconnected()
 
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
 	if (!m_status.connected) {
-		m_status.connect_failed = true;
 		connect_failed = true;
 	}
 	m_status.dirty = true;
@@ -83,8 +81,15 @@ void WifiClientApp::eh_sta_disconnected()
 	}
 }
 
-void WifiClientApp::eh_sta_got_ip()
+void WifiClientApp::eh_sta_got_ip(const system_event_sta_got_ip_t *event)
 {
+	xSemaphoreTake(m_mtx, portMAX_DELAY);
+	m_status.dirty = true;
+	memcpy(m_status.ipaddr , &event->ip_info.ip.addr     , 4);
+	memcpy(m_status.netmask, &event->ip_info.netmask.addr, 4);
+	memcpy(m_status.gw     , &event->ip_info.gw.addr     , 4);
+	xSemaphoreGive(m_mtx);
+
 	configTime(9 * 3600, 0, "ntp.jst.mfeed.ad.jp");
 	m_http_server.start();
 }
@@ -136,7 +141,9 @@ void WifiClientApp::frame()
 		M5.Lcd.setCursor(0, 100);
 		M5.Lcd.printf("Started: %s\n", m_status.started ? "Yes" : "No");
 		M5.Lcd.printf("Connected: %s\n", m_status.connected ? "Yes" : "No");
-		M5.Lcd.printf("Connectt failed: %s\n", m_status.connect_failed ? "Yes" : "No");
+		M5.Lcd.printf("IP Addr: %d.%d.%d.%d\n",
+			m_status.ipaddr[0], m_status.ipaddr[1],
+			m_status.ipaddr[2], m_status.ipaddr[3]);
 	}
 }
 

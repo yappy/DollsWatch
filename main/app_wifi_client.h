@@ -24,7 +24,9 @@ struct WifiStatus {
 	bool dirty = false;
 	bool started = false;
 	bool connected = false;
-	bool connect_failed = false;
+	uint8_t ipaddr[4] = {0};
+	uint8_t netmask[4] = {0};
+	uint8_t gw[4] = {0};
 };
 
 class WifiClientApp : public App {
@@ -53,7 +55,7 @@ private:
 	void eh_sta_stop();
 	void eh_sta_connected();
 	void eh_sta_disconnected();
-	void eh_sta_got_ip();
+	void eh_sta_got_ip(const system_event_sta_got_ip_t *event);
 	void eh_sta_lost_ip();
 };
 
