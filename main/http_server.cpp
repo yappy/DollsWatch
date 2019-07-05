@@ -1,6 +1,77 @@
 #include "http_server.h"
+#include "http_mime_type.h"
+#include "conf.h"
+#include <M5Stack.h>
 #include <http_parser.h>
-#include <algorithm>
+#include <ctype.h>
+#include <memory>
+
+namespace {
+
+	esp_err_t send_http_error(httpd_req_t *req, int code)
+	{
+		const char *msg, *status;
+		switch (code) {
+		case 400:
+			msg = status = "400 Bad Request";
+			break;
+		case 500:
+		default:
+			msg = status = "500 Internal Server Error";
+			break;
+		}
+		httpd_resp_set_status(req, status);
+		httpd_resp_set_type(req, "text/html");
+		return httpd_resp_send(req, msg, strlen(msg));
+	}
+
+	bool is_valid_filename(const char *str)
+	{
+		bool appear_normal = false;
+		while (*str != '\0') {
+			if (isalnum(*str)) {
+				// OK
+				appear_normal = true;
+			}
+			else if (*str == '.' || *str == '_' || *str == '-') {
+				// OK
+			}
+			else {
+				return false;
+			}
+			str++;
+		}
+		return appear_normal;
+	}
+
+	const char *search_mime_type(const char *filename)
+	{
+		const char *ext = strrchr(filename, '.');
+		if (ext == nullptr) {
+			return MIME_DEFAULT;
+		}
+		ext++;
+
+		auto compair = [](const void *pa, const void *pb) -> int {
+			auto a = (const MimeTypeElem *)pa;
+			auto b = (const MimeTypeElem *)pb;
+			return strcmp(a->ext, b->ext);
+		};
+		MimeTypeElem key = {
+			.ext = ext,
+			.mime = nullptr,
+		};
+		const MimeTypeElem *result = (const MimeTypeElem *)bsearch(
+			&key, MIME_LIST, MIME_LIST_COUNT, sizeof(MimeTypeElem), compair);
+		if (result == nullptr) {
+			return MIME_DEFAULT;
+		}
+		else {
+			return result->mime;
+		}
+	}
+
+} // namespace
 
 void HttpServer::start()
 {
@@ -80,7 +151,7 @@ R"(<!DOCTYPE html>
 
 esp_err_t HttpServer::page_files_get(httpd_req_t *req)
 {
-	static const char Page[] =
+	static const char Page1[] =
 R"(<!DOCTYPE html>
 <html>
 <head>
@@ -88,11 +159,20 @@ R"(<!DOCTYPE html>
   <title>File Server</title>
 </head>
 <body>
+  <h1>File Server</h1>
+
   <div><input id="upload_file" type="file" /></div>
   <div><input id="upload_button" type="button" value="upload" /></div>
   <div><progress id="upload_prog" max="100" value="0" /></div>
   <div><p id="upload_msg"></p></div>
 
+  <hr>
+
+  <ul>
+)";
+static const char Page2[] =
+R"(
+  </ul>
 <script>
 var post_file = function(upload_file) {
   var content_length = upload_file.size
@@ -138,32 +218,124 @@ document.getElementById("upload_button").addEventListener(
 </body>
 </html>
 )";
-	httpd_resp_send(req, Page, sizeof(Page) - 1);
+
+	esp_err_t ret;
+	int iret;
+
+	char query[HTTP_GET_QUERY_MAX];
+	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
+	if (ret == ESP_OK) {
+		// query on, download mode
+		if (!is_valid_filename(query)) {
+			return send_http_error(req, 400);
+		}
+
+		char full_path[HTTP_FILE_PATH_MAX];
+		iret = snprintf(full_path, sizeof(full_path),
+			"%s%s", HTTP_FILE_ROOT, query);
+		if (iret >= sizeof(full_path)) {
+			return send_http_error(req, 500);
+		}
+		printf("download: %s\n", full_path);
+
+		const char *mime = search_mime_type(query);
+		httpd_resp_set_type(req, mime);
+
+		SDFile file = SD.open(full_path, FILE_READ);
+		if (!file) {
+			return send_http_error(req, 500);
+		}
+
+		auto buf = std::unique_ptr<uint8_t[]>(
+			new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
+		if (buf == nullptr) {
+			return send_http_error(req, 500);
+		}
+		size_t read_size;
+		while ((read_size = file.read(buf.get(), HTTP_IO_BUF_SIZE)) > 0) {
+			httpd_resp_send_chunk(req, (const char *)buf.get(), read_size);
+		}
+
+		httpd_resp_send_chunk(req, nullptr, 0);
+		return ESP_OK;
+	}
+
+	// send top half
+	httpd_resp_send_chunk(req, Page1, sizeof(Page1) - 1);
+
+	// send file list
+	SDFile dir = SD.open(HTTP_FILE_ROOT, FILE_READ);
+	if (!dir) {
+		return send_http_error(req, 500);
+	}
+	while(true) {
+		SDFile entry = dir.openNextFile();
+		if (!entry) {
+			break;
+		}
+		if (entry.isDirectory()) {
+			continue;
+		}
+		const char *name = entry.name() + strlen(dir.name());
+		char buf[HTTP_FILE_NAME_MAX * 2 + 32];
+		iret = snprintf(buf, sizeof(buf),
+			"    <li><a href='?%s'>%s</a></li>\n",
+			name, name);
+		if (iret >= sizeof(buf)) {
+			return send_http_error(req, 500);
+		}
+		httpd_resp_send_chunk(req, buf, strlen(buf));
+	}
+
+	// send bottom half
+	httpd_resp_send_chunk(req, Page2, sizeof(Page2) - 1);
+	httpd_resp_send_chunk(req, nullptr, 0);
 	return ESP_OK;
 }
 
 esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
 {
-	const char * const HexChar = "0123456789abcdef";
-	char buf[16];
+	esp_err_t ret;
+	int iret;
+
+	char name[HTTP_FILE_NAME_MAX];
+	ret = httpd_req_get_hdr_value_str(req, "X-FILE-NAME", name, sizeof(name));
+	if (ret != ESP_OK) {
+		// not found or too long
+		return send_http_error(req, 400);
+	}
+	if (!is_valid_filename(name)) {
+		return send_http_error(req, 400);
+	}
+
+	char full_path[HTTP_FILE_PATH_MAX];
+	iret = snprintf(full_path, sizeof(full_path),
+		"%s%s", HTTP_FILE_ROOT, name);
+	if (iret >= sizeof(full_path)) {
+		return send_http_error(req, 500);
+	}
+	printf("upload: %s\n", full_path);
+	SDFile file = SD.open(full_path, FILE_WRITE);
+	if (!file) {
+		return send_http_error(req, 500);
+	}
+
+	auto buf = std::unique_ptr<uint8_t[]>(
+		new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
+	if (buf == nullptr) {
+		return send_http_error(req, 500);
+	}
 	size_t rest = req->content_len;
 	while (rest > 0) {
 		size_t recv_size = httpd_req_recv(
-			req, buf, std::min(rest, sizeof(buf)));
+			req, (char *)buf.get(), min(rest, HTTP_IO_BUF_SIZE));
 		if (recv_size > 0) {
 			rest -= recv_size;
-			for (size_t i = 0 ; i < recv_size; i++) {
-				char str[3];
-				str[0] = HexChar[(uint32_t)buf[i] >> 4];
-				str[1] = HexChar[(uint32_t)buf[i] & 0x0f];
-				str[2] = ' ';
-				httpd_resp_send_chunk(req, str, 3);
-			}
+			file.write(buf.get(), recv_size);
 		}
 		else {
 			return ESP_FAIL;
 		}
 	}
-	httpd_resp_send_chunk(req, nullptr, 0);
 	return ESP_OK;
 }
