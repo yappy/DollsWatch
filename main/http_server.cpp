@@ -162,7 +162,48 @@ R"(<!DOCTYPE html>
 
 esp_err_t HttpServer::page_files_get(httpd_req_t *req)
 {
-	static const char Page1[] =
+	esp_err_t ret;
+	int iret;
+
+	char query[HTTP_GET_QUERY_MAX];
+	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
+	if (ret == ESP_OK) {
+		// query on, download mode
+		if (!is_valid_filename(query)) {
+			return send_http_error(req, 400);
+		}
+
+		char full_path[HTTP_FILE_PATH_MAX];
+		iret = snprintf(full_path, sizeof(full_path),
+			"%s%s", HTTP_FILE_ROOT, query);
+		if (iret >= sizeof(full_path)) {
+			return send_http_error(req, 500);
+		}
+		printf("download: %s\n", full_path);
+
+		const char *mime = search_mime_type(query);
+		httpd_resp_set_type(req, mime);
+
+		SDFile file = SD.open(full_path, FILE_READ);
+		if (!file) {
+			return send_http_error(req, 500);
+		}
+
+		auto buf = std::unique_ptr<uint8_t[]>(
+			new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
+		if (buf == nullptr) {
+			return send_http_error(req, 500);
+		}
+		size_t read_size;
+		while ((read_size = file.read(buf.get(), HTTP_IO_BUF_SIZE)) > 0) {
+			httpd_resp_send_chunk(req, (const char *)buf.get(), read_size);
+		}
+
+		httpd_resp_send_chunk(req, nullptr, 0);
+		return ESP_OK;
+	}
+
+	static const char Page0[] =
 R"(<!DOCTYPE html>
 <html>
 <head>
@@ -171,7 +212,20 @@ R"(<!DOCTYPE html>
 </head>
 <body>
   <h1>File Server</h1>
+)";
+	httpd_resp_send_chunk(req, Page0, sizeof(Page0) - 1);
 
+	char size_msg[128];
+	double total = SD.totalBytes() / 1024.0 / 1024.0 / 1024.0;
+	double used = SD.usedBytes() / 1024.0 / 1024.0 / 1024.0;
+	double ratio = used * 100.0 / total;
+	snprintf(size_msg, sizeof(size_msg),
+		"  <p>%.2f / %.2f GiB used (%.2f%%)</p>\n",
+		used, total, ratio);
+	httpd_resp_send_chunk(req, size_msg, strlen(size_msg));
+
+	static const char Page1[] =
+R"(
   <div><input id="upload_file" type="file" /></div>
   <div><input id="upload_button" type="button" value="upload" /></div>
   <div><progress id="upload_prog" max="100" value="0" /></div>
@@ -181,7 +235,33 @@ R"(<!DOCTYPE html>
 
   <ul>
 )";
-static const char Page2[] =
+	httpd_resp_send_chunk(req, Page1, sizeof(Page1) - 1);
+
+	// send file list
+	SDFile dir = SD.open(HTTP_FILE_ROOT, FILE_READ);
+	if (!dir) {
+		return send_http_error(req, 500);
+	}
+	while(true) {
+		SDFile entry = dir.openNextFile();
+		if (!entry) {
+			break;
+		}
+		if (entry.isDirectory()) {
+			continue;
+		}
+		const char *name = entry.name() + strlen(dir.name());
+		char buf[HTTP_FILE_NAME_MAX * 2 + 32];
+		iret = snprintf(buf, sizeof(buf),
+			"    <li><a href='?%s'>%s</a></li>\n",
+			name, name);
+		if (iret >= sizeof(buf)) {
+			return send_http_error(req, 500);
+		}
+		httpd_resp_send_chunk(req, buf, strlen(buf));
+	}
+
+	static const char Page2[] =
 R"(
   </ul>
 <script>
@@ -230,76 +310,6 @@ document.getElementById("upload_button").addEventListener(
 </body>
 </html>
 )";
-
-	esp_err_t ret;
-	int iret;
-
-	char query[HTTP_GET_QUERY_MAX];
-	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
-	if (ret == ESP_OK) {
-		// query on, download mode
-		if (!is_valid_filename(query)) {
-			return send_http_error(req, 400);
-		}
-
-		char full_path[HTTP_FILE_PATH_MAX];
-		iret = snprintf(full_path, sizeof(full_path),
-			"%s%s", HTTP_FILE_ROOT, query);
-		if (iret >= sizeof(full_path)) {
-			return send_http_error(req, 500);
-		}
-		printf("download: %s\n", full_path);
-
-		const char *mime = search_mime_type(query);
-		httpd_resp_set_type(req, mime);
-
-		SDFile file = SD.open(full_path, FILE_READ);
-		if (!file) {
-			return send_http_error(req, 500);
-		}
-
-		auto buf = std::unique_ptr<uint8_t[]>(
-			new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
-		if (buf == nullptr) {
-			return send_http_error(req, 500);
-		}
-		size_t read_size;
-		while ((read_size = file.read(buf.get(), HTTP_IO_BUF_SIZE)) > 0) {
-			httpd_resp_send_chunk(req, (const char *)buf.get(), read_size);
-		}
-
-		httpd_resp_send_chunk(req, nullptr, 0);
-		return ESP_OK;
-	}
-
-	// send top half
-	httpd_resp_send_chunk(req, Page1, sizeof(Page1) - 1);
-
-	// send file list
-	SDFile dir = SD.open(HTTP_FILE_ROOT, FILE_READ);
-	if (!dir) {
-		return send_http_error(req, 500);
-	}
-	while(true) {
-		SDFile entry = dir.openNextFile();
-		if (!entry) {
-			break;
-		}
-		if (entry.isDirectory()) {
-			continue;
-		}
-		const char *name = entry.name() + strlen(dir.name());
-		char buf[HTTP_FILE_NAME_MAX * 2 + 32];
-		iret = snprintf(buf, sizeof(buf),
-			"    <li><a href='?%s'>%s</a></li>\n",
-			name, name);
-		if (iret >= sizeof(buf)) {
-			return send_http_error(req, 500);
-		}
-		httpd_resp_send_chunk(req, buf, strlen(buf));
-	}
-
-	// send bottom half
 	httpd_resp_send_chunk(req, Page2, sizeof(Page2) - 1);
 	httpd_resp_send_chunk(req, nullptr, 0);
 	return ESP_OK;
