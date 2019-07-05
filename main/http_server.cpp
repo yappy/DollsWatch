@@ -191,6 +191,7 @@ var post_file = function(upload_file) {
     if(xhr.readyState == 4) {
       if (xhr.status === 200) {
         msg.innerText = xhr.responseText;
+        setTimeout(function() { location.reload(true); }, 1000);
       }
       else {
         msg.innerText = "error!";
@@ -337,5 +338,6 @@ esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
 			return ESP_FAIL;
 		}
 	}
+	httpd_resp_send(req, "", 0);
 	return ESP_OK;
 }
