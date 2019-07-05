@@ -11,6 +11,7 @@ typedef struct {
 } MimeTypeElem;
 
 const char * const MIME_DEFAULT = "application/octet-stream";
+const uint32_t MIME_EXT_MAX = 6;
 
 const MimeTypeElem MIME_LIST[] = {
 	{ "aac",	"audio/aac"						},

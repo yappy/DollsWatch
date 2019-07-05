@@ -52,13 +52,24 @@ namespace {
 		}
 		ext++;
 
+		char lower_ext[MIME_EXT_MAX];
+		if (strlen(ext) > MIME_EXT_MAX - 1) {
+			return MIME_DEFAULT;
+		}
+		strcpy(lower_ext, ext);
+		char *p = lower_ext;
+		while (*p != '\0') {
+			*p = tolower(*p);
+			p++;
+		}
+
 		auto compair = [](const void *pa, const void *pb) -> int {
 			auto a = (const MimeTypeElem *)pa;
 			auto b = (const MimeTypeElem *)pb;
 			return strcmp(a->ext, b->ext);
 		};
 		MimeTypeElem key = {
-			.ext = ext,
+			.ext = lower_ext,
 			.mime = nullptr,
 		};
 		const MimeTypeElem *result = (const MimeTypeElem *)bsearch(
