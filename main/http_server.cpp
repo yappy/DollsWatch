@@ -121,21 +121,29 @@ void HttpServer::setup_pages()
 	};
 	httpd_register_uri_handler(m_handle, &uri_index);
 
-	httpd_uri_t uri_files {
+	httpd_uri_t uri_files_get {
 		.uri      = "/files",
 		.method   = HTTP_GET,
 		.handler  = page_files_get,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_files);
+	httpd_register_uri_handler(m_handle, &uri_files_get);
 
-	httpd_uri_t uri_upload {
+	httpd_uri_t uri_upload_post {
 		.uri      = "/upload",
 		.method   = HTTP_POST,
 		.handler  = page_upload_post,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_upload);
+	httpd_register_uri_handler(m_handle, &uri_upload_post);
+
+	httpd_uri_t uri_upload_delete {
+		.uri      = "/upload",
+		.method   = HTTP_DELETE,
+		.handler  = page_upload_delete,
+		.user_ctx = this,
+	};
+	httpd_register_uri_handler(m_handle, &uri_upload_delete);
 }
 
 esp_err_t HttpServer::page_index_get(httpd_req_t *req)
@@ -251,10 +259,14 @@ R"(
 			continue;
 		}
 		const char *name = entry.name() + strlen(dir.name());
-		char buf[HTTP_FILE_NAME_MAX * 2 + 32];
+		if (!is_valid_filename(name)) {
+			continue;
+		}
+		char buf[HTTP_FILE_NAME_MAX * 3 + 128];
 		iret = snprintf(buf, sizeof(buf),
-			"    <li><a href='?%s'>%s</a></li>\n",
-			name, name);
+			"    <li><input type='button' value='Delete' "
+			"onClick='del_file(\"%s\");' />&nbsp;<a href='?%s'>%s</a></li>\n",
+			name, name, name);
 		if (iret >= sizeof(buf)) {
 			return send_http_error(req, 500);
 		}
@@ -266,7 +278,6 @@ R"(
   </ul>
 <script>
 var post_file = function(upload_file) {
-  var content_length = upload_file.size
   var content_type = upload_file.type
   var file_name = upload_file.name;
   var msg = document.getElementById("upload_msg");
@@ -274,7 +285,6 @@ var post_file = function(upload_file) {
   var xhr = new XMLHttpRequest();
   xhr.open('POST', './upload', true);
   xhr.setRequestHeader('Content-type', content_type);
-  xhr.setRequestHeader('Content-Length', content_length);
   xhr.setRequestHeader('X-FILE-NAME', file_name);
 
   var progress = document.getElementById("upload_prog");
@@ -295,6 +305,15 @@ var post_file = function(upload_file) {
     }
   };
   xhr.send(upload_file);
+};
+
+var del_file = function(delete_file) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('DELETE', './upload', false);
+  xhr.setRequestHeader('X-FILE-NAME', delete_file);
+  // blocking
+  xhr.send(upload_file);
+  location.reload(true);
 };
 
 document.getElementById("upload_button").addEventListener(
@@ -359,6 +378,37 @@ esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
 			return ESP_FAIL;
 		}
 	}
+	httpd_resp_send(req, "", 0);
+	return ESP_OK;
+}
+
+esp_err_t HttpServer::page_upload_delete(httpd_req_t *req)
+{
+	esp_err_t ret;
+	int iret;
+
+	char name[HTTP_FILE_NAME_MAX];
+	ret = httpd_req_get_hdr_value_str(req, "X-FILE-NAME", name, sizeof(name));
+	if (ret != ESP_OK) {
+		// not found or too long
+		return send_http_error(req, 400);
+	}
+	if (!is_valid_filename(name)) {
+		return send_http_error(req, 400);
+	}
+
+	char full_path[HTTP_FILE_PATH_MAX];
+	iret = snprintf(full_path, sizeof(full_path),
+		"%s%s", HTTP_FILE_ROOT, name);
+	if (iret >= sizeof(full_path)) {
+		return send_http_error(req, 500);
+	}
+
+	printf("delete: %s\n", full_path);
+	if (!SD.remove(full_path)) {
+		return send_http_error(req, 400);
+	}
+
 	httpd_resp_send(req, "", 0);
 	return ESP_OK;
 }
