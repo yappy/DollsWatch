@@ -151,7 +151,7 @@ void WifiClientApp::setup()
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
 	//TEST
-	start_ap();
+	//start_ap();
 }
 
 void WifiClientApp::start_sta()
