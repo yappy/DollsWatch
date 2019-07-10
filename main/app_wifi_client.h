@@ -57,6 +57,13 @@ private:
 	void eh_sta_disconnected();
 	void eh_sta_got_ip(const system_event_sta_got_ip_t *event);
 	void eh_sta_lost_ip();
+	void eh_ap_start();
+	void eh_ap_stop();
+	void eh_ap_connected();
+	void eh_ap_disconnected();
+
+	void start_sta();
+	void start_ap();
 };
 
 #endif // APP_WIFI_CLIENT_H_

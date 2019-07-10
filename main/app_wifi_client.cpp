@@ -9,19 +9,19 @@ int WifiClientApp::event_handler(void *ctx, system_event_t *event)
 	case SYSTEM_EVENT_SCAN_DONE:
 		break;
 	case SYSTEM_EVENT_STA_START:
-		puts("START");
+		puts("STA_START");
 		self->eh_sta_start();
 		break;
 	case SYSTEM_EVENT_STA_STOP:
-		puts("STOP");
+		puts("STA_STOP");
 		self->eh_sta_stop();
 		break;
 	case SYSTEM_EVENT_STA_CONNECTED:
-		puts("CONNECTED");
+		puts("STA_CONNECTED");
 		self->eh_sta_connected();
 		break;
 	case SYSTEM_EVENT_STA_DISCONNECTED:
-		puts("DISCONNECTED");
+		puts("STA_DISCONNECTED");
 		self->eh_sta_disconnected();
 		break;
 	case SYSTEM_EVENT_STA_GOT_IP:
@@ -31,6 +31,22 @@ int WifiClientApp::event_handler(void *ctx, system_event_t *event)
 	case SYSTEM_EVENT_STA_LOST_IP:
 		puts("LOST IP");
 		self->eh_sta_lost_ip();
+		break;
+	case SYSTEM_EVENT_AP_START:
+		puts("AP_START");
+		self->eh_ap_start();
+		break;
+	case SYSTEM_EVENT_AP_STOP:
+		puts("AP_STOP");
+		self->eh_ap_stop();
+		break;
+	case SYSTEM_EVENT_AP_STACONNECTED:
+		puts("AP_CONNECTED");
+		self->eh_ap_connected();
+		break;
+	case SYSTEM_EVENT_AP_STADISCONNECTED:
+		puts("AP_DISCONNECTED");
+		self->eh_ap_disconnected();
 		break;
 	default:
 		break;
@@ -99,6 +115,26 @@ void WifiClientApp::eh_sta_lost_ip()
 	m_http_server.stop();
 }
 
+void WifiClientApp::eh_ap_start()
+{
+	m_http_server.start();
+}
+
+void WifiClientApp::eh_ap_stop()
+{
+	m_http_server.stop();
+}
+
+void WifiClientApp::eh_ap_connected()
+{
+
+}
+
+void WifiClientApp::eh_ap_disconnected()
+{
+
+}
+
 void WifiClientApp::setup()
 {
 	load_config_file();
@@ -114,6 +150,12 @@ void WifiClientApp::setup()
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
+	//TEST
+	start_ap();
+}
+
+void WifiClientApp::start_sta()
+{
 	wifi_config_t wifi_config;
 	memset(&wifi_config, 0, sizeof(wifi_config));
 	if (m_conf_count > 0) {
@@ -125,6 +167,28 @@ void WifiClientApp::setup()
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 	// access point config
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+	// start!
+	ESP_ERROR_CHECK(esp_wifi_start());
+}
+
+void WifiClientApp::start_ap()
+{
+	wifi_config_t wifi_config;
+	memset(&wifi_config, 0, sizeof(wifi_config));
+	strlcpy((char *)wifi_config.ap.ssid, "shanghai-wifi",
+		sizeof(wifi_config.ap.ssid));
+	wifi_config.ap.max_connection = 4;
+	if (strlen((char *)wifi_config.ap.password) == 0) {
+		wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+	}
+	else {
+		wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+	}
+
+	// station (client) mode
+	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+	// access point config
+	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
 	// start!
 	ESP_ERROR_CHECK(esp_wifi_start());
 }
