@@ -59,8 +59,8 @@ private:
 	void eh_sta_lost_ip();
 	void eh_ap_start();
 	void eh_ap_stop();
-	void eh_ap_connected();
-	void eh_ap_disconnected();
+	void eh_ap_connected(const system_event_ap_staconnected_t *event);
+	void eh_ap_disconnected(const system_event_ap_stadisconnected_t *event);
 
 	void start_sta();
 	void start_ap();

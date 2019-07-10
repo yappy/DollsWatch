@@ -42,11 +42,11 @@ int WifiClientApp::event_handler(void *ctx, system_event_t *event)
 		break;
 	case SYSTEM_EVENT_AP_STACONNECTED:
 		puts("AP_CONNECTED");
-		self->eh_ap_connected();
+		self->eh_ap_connected(&event->event_info.sta_connected);
 		break;
 	case SYSTEM_EVENT_AP_STADISCONNECTED:
 		puts("AP_DISCONNECTED");
-		self->eh_ap_disconnected();
+		self->eh_ap_disconnected(&event->event_info.sta_disconnected);
 		break;
 	default:
 		break;
@@ -125,12 +125,12 @@ void WifiClientApp::eh_ap_stop()
 	m_http_server.stop();
 }
 
-void WifiClientApp::eh_ap_connected()
+void WifiClientApp::eh_ap_connected(const system_event_ap_staconnected_t *event)
 {
 
 }
 
-void WifiClientApp::eh_ap_disconnected()
+void WifiClientApp::eh_ap_disconnected(const system_event_ap_stadisconnected_t *event)
 {
 
 }
