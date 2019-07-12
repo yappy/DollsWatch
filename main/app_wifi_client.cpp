@@ -242,15 +242,27 @@ void WifiClientApp::frame()
 		start_sta();
 	}
 
+	bool dirty;
+	xSemaphoreTake(m_mtx, portMAX_DELAY);
+	dirty = m_status.dirty;
+	xSemaphoreGive(m_mtx);
+
+	if (dirty) {
+		repaint();
+	}
+}
+
+void WifiClientApp::redraw()
+{
+	M5.Lcd.clear();
+	M5.Lcd.setTextSize(2);
+	M5.Lcd.println("Wifi");
+
 	WifiStatus status;
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
 	status = m_status;
 	m_status.dirty = false;
 	xSemaphoreGive(m_mtx);
-
-	if (!status.dirty) {
-		return;
-	}
 
 	const char *main_desc = "Disabled";
 	switch (status.state) {
@@ -303,22 +315,6 @@ void WifiClientApp::frame()
 	else if (status.state == WifiState::AP_STARTED) {
 		M5.Lcd.printf("IP Addr: %3d.%3d.%3d.%3d\n", 192, 168, 4, 1);
 	}
-}
-
-void WifiClientApp::redraw()
-{
-	M5.Lcd.clear();
-	M5.Lcd.setTextSize(2);
-	M5.Lcd.println("Wifi");
-
-	M5.Lcd.setTextSize(1);
-	for (int i = 0; i < m_conf_count; i++) {
-		M5.Lcd.printf("%d: %s\n", i + 1, m_conf[i].ssid);
-	}
-
-	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	m_status.dirty = true;
-	xSemaphoreGive(m_mtx);
 }
 
 void WifiClientApp::load_config_file()
