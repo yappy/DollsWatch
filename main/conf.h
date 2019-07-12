@@ -9,6 +9,12 @@ const uint32_t MAIN_TASK_CORE = 1;
 const uint32_t MAIN_TASK_PRIORITY = 1;
 const uint32_t MAIN_LOOP_SLEEP = 100;
 
+// GMT offset sec
+const long WIFI_NTP_TZ = 9 * 3600;
+// Daylight offset sec
+const int WIFI_NTP_DAYLIGHT = 0;
+const char WIFI_NTP_SERVER[] = "ntp.jst.mfeed.ad.jp";
+
 const char HTTP_FILE_ROOT[] = "/";
 const uint32_t HTTP_GET_QUERY_MAX = 64;
 const uint32_t HTTP_IO_BUF_SIZE = 1024;

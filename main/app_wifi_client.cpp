@@ -1,4 +1,5 @@
 #include "app_wifi_client.h"
+#include "conf.h"
 #include <M5Stack.h>
 #include <esp_event_loop.h>
 
@@ -57,8 +58,7 @@ int WifiClientApp::event_handler(void *ctx, system_event_t *event)
 void WifiClientApp::eh_sta_start()
 {
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	m_status.dirty = true;
-	m_status.started = true;
+	m_status.to(WifiState::STA_STARTED);
 	xSemaphoreGive(m_mtx);
 
 	ESP_ERROR_CHECK(esp_wifi_connect());
@@ -67,61 +67,72 @@ void WifiClientApp::eh_sta_start()
 void WifiClientApp::eh_sta_stop()
 {
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	m_status.dirty = true;
-	m_status.started = false;
+	m_status.to(WifiState::STOP);
 	xSemaphoreGive(m_mtx);
 }
 
 void WifiClientApp::eh_sta_connected()
 {
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	m_status.dirty = true;
-	m_status.connected = true;
+	m_status.to(WifiState::STA_CONNECTED);
 	xSemaphoreGive(m_mtx);
 }
 
 void WifiClientApp::eh_sta_disconnected()
 {
-	bool connect_failed = false;
-
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	if (!m_status.connected) {
-		connect_failed = true;
-	}
-	m_status.dirty = true;
-	m_status.connected = false;
+	m_status.to(WifiState::STA_STARTED);
 	xSemaphoreGive(m_mtx);
 
-	if (connect_failed) {
-		ESP_ERROR_CHECK(esp_wifi_connect());
-	}
+	// auto reconnect
+	ESP_ERROR_CHECK(esp_wifi_connect());
 }
 
 void WifiClientApp::eh_sta_got_ip(const system_event_sta_got_ip_t *event)
 {
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	m_status.dirty = true;
+	m_status.to(WifiState::STA_IP_OWNED);
 	memcpy(m_status.ipaddr , &event->ip_info.ip.addr     , 4);
 	memcpy(m_status.netmask, &event->ip_info.netmask.addr, 4);
 	memcpy(m_status.gw     , &event->ip_info.gw.addr     , 4);
 	xSemaphoreGive(m_mtx);
 
-	configTime(9 * 3600, 0, "ntp.jst.mfeed.ad.jp");
+	// kick NTP
+	configTime(WIFI_NTP_TZ, WIFI_NTP_DAYLIGHT, WIFI_NTP_SERVER);
+	// HTTP server start
 	m_http_server.start();
 }
 
 void WifiClientApp::eh_sta_lost_ip()
 {
+	xSemaphoreTake(m_mtx, portMAX_DELAY);
+	m_status.to(WifiState::STA_CONNECTED);
+	memset(m_status.ipaddr , 0, 4);
+	memset(m_status.netmask, 0, 4);
+	memset(m_status.gw     , 0, 4);
+	xSemaphoreGive(m_mtx);
+
+	// HTTP server stop
 	m_http_server.stop();
 }
 
 void WifiClientApp::eh_ap_start()
 {
+	xSemaphoreTake(m_mtx, portMAX_DELAY);
+	m_status.to(WifiState::AP_STARTED);
+	xSemaphoreGive(m_mtx);
+
+	// HTTP server start
 	m_http_server.start();
 }
 
 void WifiClientApp::eh_ap_stop()
 {
+	xSemaphoreTake(m_mtx, portMAX_DELAY);
+	m_status.to(WifiState::STOP);
+	xSemaphoreGive(m_mtx);
+
+	// HTTP server stop
 	m_http_server.stop();
 }
 
@@ -130,7 +141,8 @@ void WifiClientApp::eh_ap_connected(const system_event_ap_staconnected_t *event)
 
 }
 
-void WifiClientApp::eh_ap_disconnected(const system_event_ap_stadisconnected_t *event)
+void WifiClientApp::eh_ap_disconnected(
+	const system_event_ap_stadisconnected_t *event)
 {
 
 }
@@ -149,13 +161,21 @@ void WifiClientApp::setup()
 	// wifi init
 	wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
 	ESP_ERROR_CHECK(esp_wifi_init(&cfg));
-
-	//TEST
-	//start_ap();
 }
 
 void WifiClientApp::start_sta()
 {
+	bool stop_state = false;
+	xSemaphoreTake(m_mtx, portMAX_DELAY);
+	stop_state = (m_status.state == WifiState::STOP);
+	if (stop_state) {
+		m_status.to(WifiState::STA_STARTING);
+	}
+	xSemaphoreGive(m_mtx);
+	if (!stop_state) {
+		return;
+	}
+
 	wifi_config_t wifi_config;
 	memset(&wifi_config, 0, sizeof(wifi_config));
 	if (m_conf_count > 0) {
@@ -173,6 +193,17 @@ void WifiClientApp::start_sta()
 
 void WifiClientApp::start_ap()
 {
+	bool stop_state = false;
+	xSemaphoreTake(m_mtx, portMAX_DELAY);
+	stop_state = (m_status.state == WifiState::STOP);
+	if (stop_state) {
+		m_status.to(WifiState::AP_STARTING);
+	}
+	xSemaphoreGive(m_mtx);
+	if (!stop_state) {
+		return;
+	}
+
 	wifi_config_t wifi_config;
 	memset(&wifi_config, 0, sizeof(wifi_config));
 	strlcpy((char *)wifi_config.ap.ssid, "shanghai-wifi",
@@ -185,7 +216,7 @@ void WifiClientApp::start_ap()
 		wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
 	}
 
-	// station (client) mode
+	// access point mode
 	ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
 	// access point config
 	ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_AP, &wifi_config));
@@ -193,21 +224,74 @@ void WifiClientApp::start_ap()
 	ESP_ERROR_CHECK(esp_wifi_start());
 }
 
+void WifiClientApp::stop()
+{
+	// can call multiple times
+	ESP_ERROR_CHECK(esp_wifi_stop());
+}
+
 void WifiClientApp::frame()
 {
 	WifiStatus status;
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	status = m_status;
 	m_status.dirty = false;
+	status = m_status;
 	xSemaphoreGive(m_mtx);
 
-	if (status.dirty) {
-		M5.Lcd.setCursor(0, 100);
-		M5.Lcd.printf("Started: %s\n", m_status.started ? "Yes" : "No");
-		M5.Lcd.printf("Connected: %s\n", m_status.connected ? "Yes" : "No");
-		M5.Lcd.printf("IP Addr: %d.%d.%d.%d\n",
+	if (!status.dirty) {
+		return;
+	}
+
+	const char *main_desc = "Disabled";
+	switch (status.state) {
+	case WifiState::STOP:
+		break;
+	case WifiState::STA_STARTING:
+	case WifiState::STA_STARTED:
+	case WifiState::STA_CONNECTED:
+	case WifiState::STA_IP_OWNED:
+		main_desc = "Wifi Station";
+		break;
+	case WifiState::AP_STARTING:
+	case WifiState::AP_STARTED:
+		main_desc = "Access Point";
+		break;
+	}
+	const char *sub_desc = "";
+	switch (status.state) {
+	case WifiState::STOP:
+		break;
+	case WifiState::STA_STARTING:
+		sub_desc = "starting";
+		break;
+	case WifiState::STA_STARTED:
+		sub_desc = "connecting";
+		break;
+	case WifiState::STA_CONNECTED:
+		sub_desc = "obtaining ip";
+		break;
+	case WifiState::STA_IP_OWNED:
+		sub_desc = "connected";
+		break;
+	case WifiState::AP_STARTING:
+		sub_desc = "starting";
+		break;
+	case WifiState::AP_STARTED:
+		sub_desc = "active";
+		break;
+	}
+
+	M5.Lcd.setTextSize(2);
+	M5.Lcd.setCursor(0, 20);
+	M5.Lcd.printf("Mode: %12s\n", main_desc);
+	M5.Lcd.printf("%12s\n", sub_desc);
+	if (status.state == WifiState::STA_IP_OWNED) {
+		M5.Lcd.printf("IP Addr: %3d.%3d.%3d.%3d\n",
 			m_status.ipaddr[0], m_status.ipaddr[1],
 			m_status.ipaddr[2], m_status.ipaddr[3]);
+	}
+	else if (status.state == WifiState::AP_STARTED) {
+		M5.Lcd.printf("IP Addr: %3d.%3d.%3d.%3d\n", 192, 168, 4, 1);
 	}
 }
 
@@ -215,7 +299,7 @@ void WifiClientApp::redraw()
 {
 	M5.Lcd.clear();
 	M5.Lcd.setTextSize(2);
-	M5.Lcd.println("Wifi client");
+	M5.Lcd.println("Wifi");
 
 	M5.Lcd.setTextSize(1);
 	for (int i = 0; i < m_conf_count; i++) {
