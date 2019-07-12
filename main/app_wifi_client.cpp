@@ -244,8 +244,8 @@ void WifiClientApp::frame()
 
 	WifiStatus status;
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
-	m_status.dirty = false;
 	status = m_status;
+	m_status.dirty = false;
 	xSemaphoreGive(m_mtx);
 
 	if (!status.dirty) {
