@@ -232,6 +232,16 @@ void WifiClientApp::stop()
 
 void WifiClientApp::frame()
 {
+	if (M5.BtnB.wasReleased()) {
+		stop();
+	}
+	else if (M5.BtnA.wasReleased()) {
+		start_ap();
+	}
+	else if (M5.BtnC.wasReleased()) {
+		start_sta();
+	}
+
 	WifiStatus status;
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
 	m_status.dirty = false;
