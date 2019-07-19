@@ -83,9 +83,6 @@ void WifiClientApp::eh_sta_disconnected()
 	xSemaphoreTake(m_mtx, portMAX_DELAY);
 	m_status.to(WifiState::STA_STARTED);
 	xSemaphoreGive(m_mtx);
-
-	// auto reconnect
-	ESP_ERROR_CHECK(esp_wifi_connect());
 }
 
 void WifiClientApp::eh_sta_got_ip(const system_event_sta_got_ip_t *event)
