@@ -3,6 +3,7 @@
 #include "app_info.h"
 #include "app_clock.h"
 #include "app_wifi_client.h"
+#include <lua.hpp>
 
 namespace {
 	InfoApp s_info;
@@ -115,6 +116,10 @@ static void mainTask(void *pvParameters)
 
 extern "C" void app_main()
 {
+	static_assert(sizeof(long long) == 8, "long long");
+	lua_State *lua = luaL_newstate();
+	lua_close(lua);
+
 	initArduino();
 	xTaskCreateUniversal(mainTask, "mainTask",
 		MAIN_TASK_STACK_SIZE, NULL, MAIN_TASK_PRIORITY, NULL,
