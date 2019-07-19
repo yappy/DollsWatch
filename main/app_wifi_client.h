@@ -20,10 +20,29 @@ struct WifiConfig {
 	char pass[PassLen];
 };
 
+enum class WifiState {
+	STOP,
+
+	STA_STARTING,
+	STA_STARTED,
+	STA_CONNECTED,
+	STA_IP_OWNED,
+
+	AP_STARTING,
+	AP_STARTED,
+};
+
 struct WifiStatus {
 	bool dirty = false;
-	bool started = false;
-	bool connected = false;
+	WifiState state = WifiState::STOP;
+
+	void to(WifiState s)
+	{
+		dirty = true;
+		state = s;
+	}
+
+	// STA
 	uint8_t ipaddr[4] = {0};
 	uint8_t netmask[4] = {0};
 	uint8_t gw[4] = {0};
@@ -57,6 +76,14 @@ private:
 	void eh_sta_disconnected();
 	void eh_sta_got_ip(const system_event_sta_got_ip_t *event);
 	void eh_sta_lost_ip();
+	void eh_ap_start();
+	void eh_ap_stop();
+	void eh_ap_connected(const system_event_ap_staconnected_t *event);
+	void eh_ap_disconnected(const system_event_ap_stadisconnected_t *event);
+
+	void start_sta();
+	void start_ap();
+	void stop();
 };
 
 #endif // APP_WIFI_CLIENT_H_
