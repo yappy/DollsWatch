@@ -278,7 +278,9 @@ R"(
   </ul>
 <script>
 var post_file = function(upload_file) {
-  var content_type = upload_file.type
+  var content_type = upload_file.type;
+  content_type = (content_type == "") ?
+    "application/octet-stream" : content_type;
   var file_name = upload_file.name;
   var msg = document.getElementById("upload_msg");
 
@@ -295,7 +297,7 @@ var post_file = function(upload_file) {
         setTimeout(function() { location.reload(true); }, 1000);
       }
       else {
-        msg.innerText = "error!";
+        msg.innerText = "error: " + xhr.statusText;
       }
     }
   };
@@ -343,9 +345,11 @@ esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
 	ret = httpd_req_get_hdr_value_str(req, "X-FILE-NAME", name, sizeof(name));
 	if (ret != ESP_OK) {
 		// not found or too long
+		printf("NO X-FILE-NAME: %d\n", ret);
 		return send_http_error(req, 400);
 	}
 	if (!is_valid_filename(name)) {
+		printf("invalid file name: %s\n", name);
 		return send_http_error(req, 400);
 	}
 
