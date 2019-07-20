@@ -116,8 +116,10 @@ static void mainTask(void *pvParameters)
 
 extern "C" void app_main()
 {
-	static_assert(sizeof(long long) == 8, "long long");
 	lua_State *lua = luaL_newstate();
+	printf("lua: %p\n", lua);
+	luaL_openlibs(lua);
+	luaL_dostring(lua, "print('hello lua!')");
 	lua_close(lua);
 
 	initArduino();
