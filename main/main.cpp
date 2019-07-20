@@ -1,9 +1,9 @@
 #include <M5Stack.h>
 #include "conf.h"
+#include "script_lua.h"
 #include "app_info.h"
 #include "app_clock.h"
 #include "app_wifi_client.h"
-#include <lua.hpp>
 
 namespace {
 	InfoApp s_info;
@@ -50,6 +50,14 @@ static void mainTask(void *pvParameters)
 	// LCD, SD, Serial, I2C
 	M5.begin(true, true, true, false);
 	M5.Power.begin();
+
+	{
+		Lua luatest;
+		bool ok = luatest.init();
+		printf("lua init: %s\n", ok ? "OK" : "NG");
+		ok = luatest.eval_file("/sd/index.lua");
+		printf("index.lua: %s\n", ok ? "OK" : "NG");
+	}
 
 	const uint32_t W = M5.Lcd.width();
 	const uint32_t H = M5.Lcd.height();
@@ -116,12 +124,6 @@ static void mainTask(void *pvParameters)
 
 extern "C" void app_main()
 {
-	lua_State *lua = luaL_newstate();
-	printf("lua: %p\n", lua);
-	luaL_openlibs(lua);
-	luaL_dostring(lua, "print('hello lua!')");
-	lua_close(lua);
-
 	initArduino();
 	xTaskCreateUniversal(mainTask, "mainTask",
 		MAIN_TASK_STACK_SIZE, NULL, MAIN_TASK_PRIORITY, NULL,
