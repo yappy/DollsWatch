@@ -430,20 +430,47 @@ esp_err_t HttpServer::page_upload_delete(httpd_req_t *req)
 esp_err_t HttpServer::page_edit_get(httpd_req_t *req)
 {
 	esp_err_t ret;
+	int luaret;
+
+	char query[HTTP_GET_QUERY_MAX];
+	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
+	if (ret != ESP_OK) {
+		query[0] = '\0';
+	}
 
 	Lua lua;
 	bool ok = lua.init();
 	if (!ok) {
 		return send_http_error(req, 500);
 	}
-	ok = lua.eval_file("/sd/edit.lua");
+	lua_State *L = lua.get();
+
+	lua_pushboolean(L, 1);
+	lua_setglobal(L, "WEBAPP");
+	ok = lua.eval_file("/sd/root.lua");
 	if (!ok) {
 		return send_http_error(req, 500);
 	}
 
-	lua_State *L = lua.get();
-	if (lua_gettop(L) != 3) {
-		return send_http_error(req, 500);
+	// clear stack
+	lua_settop(L, 0);
+	// TODO: may cause error
+	// push global function "main"
+	lua_getglobal(L, "main");
+	// push args
+	lua_pushliteral(L, "/sd/");
+	lua_pushliteral(L, "GET");
+	lua_pushstring(L, query);
+	lua_pushinteger(L, req->content_len);
+	lua_pushnil(L);
+	// call
+	luaret = lua_pcall(L, 5, LUA_MULTRET, 0);
+	if (luaret != LUA_OK) {
+		printf("lua_pcall: %d\n", luaret);
+		if (lua_gettop(L) >= 1) {
+			printf("%s\n", lua_tostring(L, -1));
+		}
+		return send_http_error(req, 500);;
 	}
 
 	// string status, string type, string body
