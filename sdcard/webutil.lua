@@ -3,7 +3,7 @@ local webutil = {}
 local STATUS_TABLE = {
 	[200] = "200 OK",
 	[400] = "400 Bad Request",
-	[400] = "400 Bad Request",
+	[400] = "403 Forbidden",
 	[404] = "404 Not Found",
 	[405] = "405 Method Not Allowed",
 }

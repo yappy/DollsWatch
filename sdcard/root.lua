@@ -51,7 +51,7 @@ local function co_main(lua_root, method, query_str, content_length, recv)
 		return webutil.response(500)
 	end
 	-- call chunk with parameters
-	return chunk(method, query, content_length, recv)
+	return chunk(lua_root, method, query, content_length, recv)
 end
 
 --[[
