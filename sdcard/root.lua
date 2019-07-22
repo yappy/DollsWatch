@@ -19,7 +19,7 @@ end
 
 
 --[[
-global export main (yieldable)
+main coroutine (yieldable)
 
 @returns string http_status, content_type
 @returns (n >= 0 times) string header_key, string header_value
@@ -27,7 +27,7 @@ global export main (yieldable)
 @returns (n >= 0 times) string response_body
 @returns void
 ]]
-function main(lua_root, method, query_str, content_length, recv)
+local function co_main(lua_root, method, query_str, content_length, recv)
 	assert(coroutine.isyieldable())
 
 	local query = parse_query(query_str)
@@ -54,6 +54,23 @@ function main(lua_root, method, query_str, content_length, recv)
 	return chunk(method, query, content_length, recv)
 end
 
+--[[
+global export init, loop
+]]
+local co = nil
+local cnt = 0
+function init()
+	assert(co == nil)
+	co = coroutine.wrap(co_main)
+end
+
+function loop(lua_root, method, query_str, content_length, recv)
+	assert(co ~= nil)
+	cnt = cnt + 1
+	print("loop called", cnt)
+	return co(lua_root, method, query_str, content_length, recv)
+end
+
 -- test main
 print("WEBAPP:", _ENV.WEBAPP)
 print("path ", package.path)
@@ -61,7 +78,7 @@ print("cpath", package.cpath)
 
 if not _ENV.WEBAPP then
 	local line = io.read("l")
-	local th = coroutine.wrap(main)
+	local th = coroutine.wrap(co_main)
 	while true do
 		local ret, ret2 = th("./", "GET", line, 0, nil)
 		if ret then

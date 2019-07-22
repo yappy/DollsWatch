@@ -452,32 +452,83 @@ esp_err_t HttpServer::page_edit_get(httpd_req_t *req)
 		return send_http_error(req, 500);
 	}
 
-	// clear stack
-	lua_settop(L, 0);
 	// TODO: may cause error
-	// push global function "main"
-	lua_getglobal(L, "main");
-	// push args
-	lua_pushliteral(L, "/sd/");
-	lua_pushliteral(L, "GET");
-	lua_pushstring(L, query);
-	lua_pushinteger(L, req->content_len);
-	lua_pushnil(L);
+	// push global function "init"
+	lua_settop(L, 0);
+	lua_getglobal(L, "init");
 	// call
-	luaret = lua_pcall(L, 5, LUA_MULTRET, 0);
+	luaret = lua_pcall(L, 0, 0, 0);
 	if (luaret != LUA_OK) {
-		printf("lua_pcall: %d\n", luaret);
+		printf("lua_pcall init: %d\n", luaret);
 		if (lua_gettop(L) >= 1) {
 			printf("%s\n", lua_tostring(L, -1));
 		}
 		return send_http_error(req, 500);;
 	}
 
+	auto call_loop = [L, &query, req]() -> int {
+		// TODO: may cause error
+		// push global function "loop"
+		lua_settop(L, 0);
+		lua_getglobal(L, "loop");
+		// push args
+		lua_pushliteral(L, "/sd/");
+		lua_pushliteral(L, "GET");
+		lua_pushstring(L, query);
+		lua_pushinteger(L, req->content_len);
+		lua_pushnil(L);
+		// call
+		int luaret = lua_pcall(L, 5, LUA_MULTRET, 0);
+		if (luaret != LUA_OK) {
+			printf("lua_pcall loop: %d\n", luaret);
+			if (lua_gettop(L) >= 1) {
+				printf("%s\n", lua_tostring(L, -1));
+			}
+		}
+		return luaret;
+	};
+
 	// string status, string type, string body
+	if (call_loop() != LUA_OK) {
+		return send_http_error(req, 500);
+	}
+	if (lua_gettop(L) != 2) {
+		printf("Expected 2, but %d\n", lua_gettop(L));
+		return send_http_error(req, 500);
+	}
+	if (lua_tostring(L, 1) == nullptr || lua_tostring(L, 2) == nullptr) {
+		printf("Expected string\n");
+		return send_http_error(req, 500);
+	}
 	httpd_resp_set_status(req, lua_tostring(L, 1));
 	httpd_resp_set_type(req, lua_tostring(L, 2));
-	size_t size = 0;
-	const char *body = lua_tolstring(L, 3, &size);
-	httpd_resp_send(req, body, size);
+
+	// TODO: http header
+	if (call_loop() != LUA_OK) {
+		return ESP_FAIL;
+	}
+
+	// body
+	while (1) {
+		if (call_loop() != LUA_OK) {
+			return ESP_FAIL;
+		}
+		// void returned: end
+		if (lua_gettop(L) == 0) {
+			break;
+		}
+		if (lua_gettop(L) != 1) {
+			printf("Expected 1, but %d\n", lua_gettop(L));
+			return ESP_FAIL;
+		}
+		if (lua_tostring(L, 1) == nullptr) {
+			printf("Expected string\n");
+			return ESP_FAIL;
+		}
+		size_t size = 0;
+		const char *body = lua_tolstring(L, 1, &size);
+		httpd_resp_send_chunk(req, body, size);
+	}
+	httpd_resp_send_chunk(req, nullptr, 0);
 	return ESP_OK;
 }

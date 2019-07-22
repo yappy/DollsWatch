@@ -51,14 +51,6 @@ static void mainTask(void *pvParameters)
 	M5.begin(true, true, true, false);
 	M5.Power.begin();
 
-	{
-		Lua luatest;
-		bool ok = luatest.init();
-		printf("lua init: %s\n", ok ? "OK" : "NG");
-		ok = luatest.eval_file("/sd/index.lua");
-		printf("index.lua: %s\n", ok ? "OK" : "NG");
-	}
-
 	const uint32_t W = M5.Lcd.width();
 	const uint32_t H = M5.Lcd.height();
 	const uint32_t TextH = M5.Lcd.fontHeight() * 2;

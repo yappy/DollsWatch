@@ -17,6 +17,7 @@ function webutil.response(code, content_type, header, body)
 	body = body or status
 
 	-- status, content_type
+	print("yield", status, content_type)
 	coroutine.yield(status, content_type)
 	-- { key, value } * N
 	for k, v in pairs(header) do
