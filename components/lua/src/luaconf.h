@@ -781,10 +781,10 @@
 ** Local configuration. You can use this space to add your redefinitions
 ** without modifying the main part of the file.
 */
-
-
-
-
+#undef LUA_PATH_DEFAULT
+#define LUA_PATH_DEFAULT "/sd/?.lua"
+#undef LUA_CPATH_DEFAULT
+#define LUA_CPATH_DEFAULT ""
 
 #endif
 
