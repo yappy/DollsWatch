@@ -22,6 +22,7 @@ private:
 	static esp_err_t page_files_get(httpd_req_t *req);
 	static esp_err_t page_upload_post(httpd_req_t *req);
 	static esp_err_t page_upload_delete(httpd_req_t *req);
+	static esp_err_t page_edit_get(httpd_req_t *req);
 };
 
 #endif // HTTP_SERVER_H_

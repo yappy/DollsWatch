@@ -10,6 +10,7 @@ public:
 	~Lua() = default;
 	bool init();
 
+	lua_State *get() { return m_lua.get(); }
 	bool eval_file(const char *path);
 
 private:

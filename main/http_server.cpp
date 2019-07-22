@@ -1,6 +1,7 @@
 #include "http_server.h"
 #include "http_mime_type.h"
 #include "conf.h"
+#include "script_lua.h"
 #include <M5Stack.h>
 #include <http_parser.h>
 #include <ctype.h>
@@ -144,6 +145,14 @@ void HttpServer::setup_pages()
 		.user_ctx = this,
 	};
 	httpd_register_uri_handler(m_handle, &uri_upload_delete);
+
+	httpd_uri_t uri_edit_get {
+		.uri      = "/edit",
+		.method   = HTTP_GET,
+		.handler  = page_edit_get,
+		.user_ctx = this,
+	};
+	httpd_register_uri_handler(m_handle, &uri_edit_get);
 }
 
 esp_err_t HttpServer::page_index_get(httpd_req_t *req)
@@ -414,5 +423,33 @@ esp_err_t HttpServer::page_upload_delete(httpd_req_t *req)
 	}
 
 	httpd_resp_send(req, "", 0);
+	return ESP_OK;
+}
+
+esp_err_t HttpServer::page_edit_get(httpd_req_t *req)
+{
+	esp_err_t ret;
+
+	Lua lua;
+	bool ok = lua.init();
+	if (!ok) {
+		return send_http_error(req, 500);
+	}
+	ok = lua.eval_file("/sd/edit.lua");
+	if (!ok) {
+		return send_http_error(req, 500);
+	}
+
+	lua_State *L = lua.get();
+	if (lua_gettop(L) != 3) {
+		return send_http_error(req, 500);
+	}
+
+	// string status, string type, string body
+	httpd_resp_set_status(req, lua_tostring(L, 1));
+	httpd_resp_set_type(req, lua_tostring(L, 2));
+	size_t size = 0;
+	const char *body = lua_tolstring(L, 3, &size);
+	httpd_resp_send(req, body, size);
 	return ESP_OK;
 }
