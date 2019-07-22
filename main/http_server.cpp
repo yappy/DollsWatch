@@ -91,6 +91,7 @@ void HttpServer::start()
 
 	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 	// config.task_priority = tskIDLE_PRIORITY+5
+	config.stack_size = HTTP_TASK_STACK_SIZE;
 	// config.server_port = 80
 	// config.max_uri_handlers = 8
 
