@@ -8,8 +8,16 @@ local STATUS_TABLE = {
 	[405] = "405 Method Not Allowed",
 }
 
--- body is nullable
+-- body is nullable (automatically status meeesge will be used)
 function webutil.response(code, content_type, header, body)
+	webutil.response_partial(code, content_type, header)
+	-- body
+	coroutine.yield(body)
+	-- void
+	return
+end
+
+function webutil.response_partial(code, content_type, header)
 	-- body default = status
 	local status = STATUS_TABLE[code] or tostring(code)
 	content_type = content_type or "text/html"
@@ -25,10 +33,6 @@ function webutil.response(code, content_type, header, body)
 	end
 	-- void
 	coroutine.yield()
-	-- body
-	coroutine.yield(body)
-	-- void
-	return
 end
 
 -- RFC 3986
