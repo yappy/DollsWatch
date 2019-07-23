@@ -58,7 +58,6 @@ end
 global export init, loop
 ]]
 local co = nil
-local cnt = 0
 function init()
 	assert(co == nil)
 	co = coroutine.wrap(co_main)
@@ -66,8 +65,6 @@ end
 
 function loop(lua_root, method, query_str, content_length, recv)
 	assert(co ~= nil)
-	cnt = cnt + 1
-	print("loop called", cnt)
 	return co(lua_root, method, query_str, content_length, recv)
 end
 
@@ -77,10 +74,11 @@ print("path ", package.path)
 print("cpath", package.cpath)
 
 if not _ENV.WEBAPP then
-	local line = io.read("l")
-	local th = coroutine.wrap(co_main)
+	init()
+	local q = ...
+	q = q or io.read("l")
 	while true do
-		local ret, ret2 = th("./", "GET", line, 0, nil)
+		local ret, ret2 = loop("./", "GET", q, 0, nil)
 		if ret then
 			print(ret, ret2)
 		else
@@ -88,9 +86,9 @@ if not _ENV.WEBAPP then
 		end
 	end
 	while true do
-		local ret, ret2 = th("./", "GET", line, 0, nil)
+		local ret = loop("./", "GET", q, 0, nil)
 		if ret then
-			print(ret, ret2)
+			io.write(ret)
 		else
 			break
 		end

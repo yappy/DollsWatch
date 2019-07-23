@@ -3,7 +3,7 @@ local webutil = {}
 local STATUS_TABLE = {
 	[200] = "200 OK",
 	[400] = "400 Bad Request",
-	[400] = "403 Forbidden",
+	[403] = "403 Forbidden",
 	[404] = "404 Not Found",
 	[405] = "405 Method Not Allowed",
 }
@@ -17,7 +17,7 @@ function webutil.response(code, content_type, header, body)
 	return
 end
 
-function webutil.response_partial(code, content_type, header)
+function webutil.response_header(code, content_type, header)
 	-- body default = status
 	local status = STATUS_TABLE[code] or tostring(code)
 	content_type = content_type or "text/html"
@@ -32,6 +32,25 @@ function webutil.response_partial(code, content_type, header)
 		coroutine.yield(k, v)
 	end
 	-- void
+	coroutine.yield()
+end
+
+-- template replacing output
+function webutil.response_body(tmpl, func_tbl)
+	local cur = 1
+	for pos1, sym, pos2 in string.gmatch(tmpl, "()@@([^@]+)@@()") do
+		-- output cur ~ left of @@
+		coroutine.yield(string.sub(tmpl, cur, pos1 - 1))
+		-- call func by symbol string
+		func_tbl[sym]();
+		-- move to right of @@
+		cur = pos2
+	end
+	local rest = string.sub(tmpl, cur)
+	if #rest > 0 then
+		coroutine.yield(rest)
+	end
+	-- body end
 	coroutine.yield()
 end
 
@@ -54,6 +73,17 @@ function webutil.unescape(src)
 			return string.char(tonumber(hex, 16))
 		end)
 	return src
+end
+
+local HTML_ESC = {
+	["&"] = "&amp;",
+	['"'] = "&quot;",
+	["'"] = "&apos;",
+	["<"] = "&lt;",
+	[">"] = "&gt",
+}
+function webutil.html_escape(src)
+	return string.gsub(src, "[%&%\"%'%<%>]", HTML_ESC)
 end
 
 return webutil
