@@ -10,8 +10,29 @@ local GET_TEMPLATE = [[
 </head>
 <body>
   <form>
-    <textarea autofocus rows="40" cols="80">@@text@@</textarea>
+    <textarea id = "data" autofocus rows="40" cols="80">@@text@@</textarea>
+    <input id="submit" type="button" onClick="" />
   </form>
+
+<script>
+  var post_file = function(file_name, data) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', './edit?p=edit&f=' + file_name, false);
+    xhr.setRequestHeader('Content-type', "text/plain");
+    xhr.send(data);
+    location.reload(true);
+  }
+
+  document.getElementById("submit").addEventListener(
+    "click",
+    function() {
+      var file_name = "@@file_url@@";
+      var data = document.getElementById("data").value;
+      post_file(, data);
+    },
+    false);
+</script>
+
 </body>
 </html>
 ]]
@@ -25,7 +46,8 @@ local function get(lua_root, query)
 		return webutil.response(400, "text/plain", nil, "File name required")
 	end
 
-	local f = io.open(lua_root .. query["f"], "r")
+	local file_name = query["f"]
+	local f = io.open(lua_root .. file_name, "r")
 	if not f then
 		return webutil.response(400, "text/plain", nil, "Cannot open")
 	end
@@ -40,6 +62,9 @@ local function get(lua_root, query)
 			end
 			coroutine.yield(webutil.html_escape(data))
 		end
+	end
+	function func_tbl.file_url()
+		coroutine.yield(webutil.escape(file_name))
 	end
 	webutil.response_body(GET_TEMPLATE, func_tbl)
 	f:close()
