@@ -10,7 +10,7 @@ local STATUS_TABLE = {
 
 -- body is nullable (automatically status meeesge will be used)
 function webutil.response(code, content_type, header, body)
-	webutil.response_partial(code, content_type, header)
+	webutil.response_header(code, content_type, header)
 	-- body
 	coroutine.yield(body)
 	-- void

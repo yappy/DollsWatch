@@ -69,9 +69,7 @@ function loop(lua_root, method, query_str, content_length, recv)
 end
 
 -- test main
-print("WEBAPP:", _ENV.WEBAPP)
-print("path ", package.path)
-print("cpath", package.cpath)
+print("[Lua web start]", "WEBAPP:", _ENV.WEBAPP)
 
 if not _ENV.WEBAPP then
 	init()

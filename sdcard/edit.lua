@@ -17,7 +17,7 @@ local GET_TEMPLATE = [[
 <script>
   var post_file = function(file_name, data) {
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', './edit?p=edit&f=' + file_name, false);
+    xhr.open('POST', '?p=edit&f=' + file_name, false);
     xhr.setRequestHeader('Content-type', "text/plain");
     xhr.send(data);
     location.reload(true);
@@ -73,6 +73,12 @@ end
 
 local function post(lua_root, query, content_length, recv)
 	print("post!")
+	while content_length > 0 do
+		local size = math.min(256, content_length)
+		local buf = recv(size)
+		io.write(buf)
+		content_length = content_length - #buf
+	end
 end
 
 local lua_root, method, query, content_length, recv = ...
@@ -80,7 +86,7 @@ if method == "GET" then
 	return get(lua_root, query)
 elseif method == "POST" then
 	post(lua_root, query, content_length, recv)
-	return webutil.response(500, nil, "Not implemented")
+	return webutil.response(500, "text/plain", nil, "Not implemented")
 else
 	return webutil.response(405)
 end

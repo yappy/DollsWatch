@@ -9,6 +9,16 @@
 
 namespace {
 
+	struct ExtraSpace {
+		httpd_req_t *req;
+	};
+	static_assert(sizeof(ExtraSpace) <= LUA_EXTRASPACE, "LUA_EXTRASPACE");
+
+	inline ExtraSpace& get_extra(lua_State *L)
+	{
+		return *(ExtraSpace *)lua_getextraspace(L);
+	}
+
 	esp_err_t send_http_error(httpd_req_t *req, int code)
 	{
 		const char *msg, *status;
@@ -115,13 +125,20 @@ bool HttpServer::is_running()
 
 void HttpServer::setup_pages()
 {
-	httpd_uri_t uri_index {
+	httpd_uri_t uri_index_get {
 		.uri      = "/",
 		.method   = HTTP_GET,
-		.handler  = page_index_get,
+		.handler  = page_script,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_index);
+	httpd_register_uri_handler(m_handle, &uri_index_get);
+	httpd_uri_t uri_index_post {
+		.uri      = "/",
+		.method   = HTTP_POST,
+		.handler  = page_script,
+		.user_ctx = this,
+	};
+	httpd_register_uri_handler(m_handle, &uri_index_post);
 
 	httpd_uri_t uri_files_get {
 		.uri      = "/files",
@@ -146,36 +163,6 @@ void HttpServer::setup_pages()
 		.user_ctx = this,
 	};
 	httpd_register_uri_handler(m_handle, &uri_upload_delete);
-
-	httpd_uri_t uri_edit_get {
-		.uri      = "/edit",
-		.method   = HTTP_GET,
-		.handler  = page_edit_get,
-		.user_ctx = this,
-	};
-	httpd_register_uri_handler(m_handle, &uri_edit_get);
-}
-
-esp_err_t HttpServer::page_index_get(httpd_req_t *req)
-{
-	// httpd_resp_set_status()
-	// httpd_resp_set_type()
-	// httpd_resp_set_hdr()
-	static const char Page[] =
-R"(<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Hello</title>
-</head>
-<body>
-  <p>Hello my watch!!!!!</p>
-  <p><a href="./files">File Server</a></p>
-</body>
-</html>
-)";
-	httpd_resp_send(req, Page, sizeof(Page) - 1);
-	return ESP_OK;
 }
 
 esp_err_t HttpServer::page_files_get(httpd_req_t *req)
@@ -427,10 +414,22 @@ esp_err_t HttpServer::page_upload_delete(httpd_req_t *req)
 	return ESP_OK;
 }
 
-esp_err_t HttpServer::page_edit_get(httpd_req_t *req)
+esp_err_t HttpServer::page_script(httpd_req_t *req)
 {
 	esp_err_t ret;
 	int luaret;
+
+	const char *method = nullptr;
+	switch (req->method) {
+	case HTTP_GET:
+		method = "GET";
+		break;
+	case HTTP_POST:
+		method = "POST";
+		break;
+	default:
+		return ESP_FAIL;
+	}
 
 	char query[HTTP_GET_QUERY_MAX];
 	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
@@ -444,6 +443,7 @@ esp_err_t HttpServer::page_edit_get(httpd_req_t *req)
 		return send_http_error(req, 500);
 	}
 	lua_State *L = lua.get();
+	get_extra(L).req = req;
 
 	lua_pushboolean(L, 1);
 	lua_setglobal(L, "WEBAPP");
@@ -466,17 +466,42 @@ esp_err_t HttpServer::page_edit_get(httpd_req_t *req)
 		return send_http_error(req, 500);;
 	}
 
-	auto call_loop = [L, &query, req]() -> int {
+	lua_Integer content_len = (lua_Integer)req->content_len;
+	auto recv = [](lua_State *L) -> int {
+		lua_Integer lsize = luaL_checkinteger(L, 1);
+		if (lsize <= 0) {
+			luaL_error(L, "Recv size must > 0");
+			// never returns
+		}
+		lua_settop(L, 0);
+		// allocate buffer in lua mm with gc and push
+		size_t size = (size_t)lsize;
+		void *buf = lua_newuserdata(L, size);
+		// receive to it
+		esp_err_t ret = httpd_req_recv(get_extra(L).req, (char *)buf, size);
+		if (ret <= 0) {
+			luaL_error(L, "httpd_req_recv: %d", ret);
+			// never returns
+		}
+		// push received data as a string
+		lua_pushlstring(L, (const char *)buf, ret);
+		// discard buffer (to be gc-ed)
+		lua_remove(L, 1);
+		// returns received data (string)
+		return 1;
+	};
+
+	auto call_loop = [L, method, &query, content_len, recv]() -> int {
 		// TODO: may cause error
 		// push global function "loop"
 		lua_settop(L, 0);
 		lua_getglobal(L, "loop");
 		// push args
 		lua_pushliteral(L, "/sd/");
-		lua_pushliteral(L, "GET");
+		lua_pushstring(L, method);
 		lua_pushstring(L, query);
-		lua_pushinteger(L, req->content_len);
-		lua_pushnil(L);
+		lua_pushinteger(L, content_len);
+		lua_pushcfunction(L, recv);
 		// call
 		int luaret = lua_pcall(L, 5, LUA_MULTRET, 0);
 		if (luaret != LUA_OK) {
