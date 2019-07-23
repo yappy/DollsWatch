@@ -83,7 +83,8 @@ local HTML_ESC = {
 	[">"] = "&gt",
 }
 function webutil.html_escape(src)
-	return string.gsub(src, "[%&%\"%'%<%>]", HTML_ESC)
+	local result = string.gsub(src, "[%&%\"%'%<%>]", HTML_ESC)
+	return result
 end
 
 return webutil

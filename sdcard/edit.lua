@@ -11,7 +11,7 @@ local GET_TEMPLATE = [[
 <body>
   <form>
     <textarea id = "data" autofocus rows="40" cols="80">@@text@@</textarea>
-    <input id="submit" type="button" onClick="" />
+    <div><input id="submit" type="button" value="Submit" /></div>
   </form>
 
 <script>
@@ -28,7 +28,7 @@ local GET_TEMPLATE = [[
     function() {
       var file_name = "@@file_url@@";
       var data = document.getElementById("data").value;
-      post_file(, data);
+      post_file(file_name, data);
     },
     false);
 </script>
@@ -52,7 +52,7 @@ local function get(lua_root, query)
 		return webutil.response(400, "text/plain", nil, "Cannot open")
 	end
 
-	webutil.response_header(200, "text/plain", nil, data)
+	webutil.response_header(200, "text/html", nil, data)
 	local func_tbl = {}
 	function func_tbl.text()
 		while true do
@@ -71,15 +71,16 @@ local function get(lua_root, query)
 	return
 end
 
-local function post()
-
+local function post(lua_root, query, content_length, recv)
+	print("post!")
 end
 
 local lua_root, method, query, content_length, recv = ...
 if method == "GET" then
 	return get(lua_root, query)
 elseif method == "POST" then
-	return webutil.response(405)
+	post(lua_root, query, content_length, recv)
+	return webutil.response(500, nil, "Not implemented")
 else
 	return webutil.response(405)
 end
