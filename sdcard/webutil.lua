@@ -1,3 +1,4 @@
+local util = require("util")
 local webutil = {}
 
 local STATUS_TABLE = {
@@ -8,8 +9,26 @@ local STATUS_TABLE = {
 	[405] = "405 Method Not Allowed",
 }
 
--- body is nullable (automatically status meeesge will be used)
+--[[
+Return all HTTP response at a time.
+
+int code HTTP status code
+string(nilable) content_type HTTP content type
+table<string, string>(nilable) header Other HTTP headers table
+string body HTTP response body
+]]
 function webutil.response(code, content_type, header, body)
+	util.checkarg(body, "string", true)
+	-- body default = status
+	body = body or STATUS_TABLE[code]
+	body = body or tostring(code)
+	-- append LF if body is not empty AND the last character is not LF
+	if body ~= "" then
+		if string.sub(body, #body) ~= "\n" then
+			body = body .. "\n"
+		end
+	end
+
 	webutil.response_header(code, content_type, header)
 	-- body
 	coroutine.yield(body)
@@ -17,26 +36,54 @@ function webutil.response(code, content_type, header, body)
 	return
 end
 
+--[[
+Return HTTP response header.
+
+int code HTTP status code
+string(nilable) content_type HTTP content type
+table<string, string>(nilable) header Other HTTP headers table
+]]
 function webutil.response_header(code, content_type, header)
-	-- body default = status
+	util.checkarg(code, "number")
+	util.checkarg(content_type, "string", true)
+	util.checkarg(header, "table", true)
+	-- content_type, header default
 	local status = STATUS_TABLE[code] or tostring(code)
-	content_type = content_type or "text/html"
+	content_type = content_type or "text/plain"
 	header = header or {}
-	body = body or status
 
 	-- status, content_type
-	print("yield", status, content_type)
 	coroutine.yield(status, content_type)
 	-- { key, value } * N
 	for k, v in pairs(header) do
+		util.checkarg(k, "string")
+		util.checkarg(v, "string")
 		coroutine.yield(k, v)
 	end
 	-- void
 	coroutine.yield()
 end
 
--- template replacing output
+--[[
+Return HTTP response body.
+Non-special part in the template string will be yield-returned.
+If @@SYMBOL@@ is found in the template string,
+func_tbl["SYMBOL"] will be called.
+Please yield-return a substitute string from the function.
+If func_tbl is nil, template replacement will be disabled.
+
+string tmpl Template text
+table<string, function>(nilable) func_tbl Symbol->Function table
+]]
 function webutil.response_body(tmpl, func_tbl)
+	util.checkarg(tmpl, "string")
+	util.checkarg(func_tbl, "table", true)
+
+	if func_tbl == nil then
+		coroutine.yield(tmpl)
+		return
+	end
+
 	local cur = 1
 	for pos1, sym, pos2 in string.gmatch(tmpl, "()@@([^@]+)@@()") do
 		-- output cur ~ left of @@
@@ -54,25 +101,45 @@ function webutil.response_body(tmpl, func_tbl)
 	coroutine.yield()
 end
 
--- RFC 3986
--- PHP rawurlencode compatible
+--[[
+RFC 3986
+PHP rawurlencode compatible
+]]
 function webutil.escape(src)
-	return (string.gsub(src, "([^A-Za-z0-9-_.~])", function(c)
-		return string.format("%%%02x", string.byte(c))
-	end))
+	util.checkarg(src, "string")
+
+	return string.gsub(
+		src, "([^A-Za-z0-9-_.~])",
+		function(c)
+			return string.format("%%%02x", string.byte(c))
+		end
+	)
 end
 
--- + -> space
--- %hh -> raw byte
+--[[
++ -> space
+%hh -> raw byte
+]]
 function webutil.unescape(src)
+	util.checkarg(src, "string")
+
 	src = string.gsub(src, "%+", " ")
 	src = string.gsub(
-		src,
-		"%%(%x%x)",
+		src, "%%(%x%x)",
 		function(hex)
 			return string.char(tonumber(hex, 16))
-		end)
+		end
+	)
 	return src
+end
+
+--[[
+HTML special characters -> &xxx;
+]]
+function webutil.html_escape(src)
+	util.checkarg(src, "string")
+
+	return string.gsub(src, "[%&%\"%'%<%>]", HTML_ESC)
 end
 
 local HTML_ESC = {
@@ -82,10 +149,6 @@ local HTML_ESC = {
 	["<"] = "&lt;",
 	[">"] = "&gt",
 }
-function webutil.html_escape(src)
-	local result = string.gsub(src, "[%&%\"%'%<%>]", HTML_ESC)
-	return result
-end
 
 local MINE_LIST = {
 	["aac"]		=	"audio/aac",

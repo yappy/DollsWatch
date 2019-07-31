@@ -34,7 +34,6 @@ local function co_main(lua_root, method, query_str, content_length, recv)
 	local page = query["p"] or "index"
 
 	if not is_valid_page(page) then
-		print("invalid page")
 		return webutil.response(404)
 	end
 
@@ -75,6 +74,7 @@ if not _ENV.WEBAPP then
 	init()
 	local q = ...
 	q = q or io.read("l")
+	print("---- HEADER ----")
 	while true do
 		local ret, ret2 = loop("./", "GET", q, 0, nil)
 		if ret then
@@ -83,6 +83,7 @@ if not _ENV.WEBAPP then
 			break
 		end
 	end
+	print("----  BODY  ----")
 	while true do
 		local ret = loop("./", "GET", q, 0, nil)
 		if ret then
