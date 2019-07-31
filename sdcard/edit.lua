@@ -1,3 +1,4 @@
+local common = require("common")
 local webutil = require("webutil")
 
 local GET_TEMPLATE = [[
@@ -56,7 +57,7 @@ local function get(lua_root, query)
 	local func_tbl = {}
 	function func_tbl.text()
 		while true do
-			local data = f:read(256)
+			local data = f:read(common.DEF_BUF_SIZE)
 			if not data then
 				break
 			end
@@ -74,7 +75,7 @@ end
 local function post(lua_root, query, content_length, recv)
 	print("post!")
 	while content_length > 0 do
-		local size = math.min(256, content_length)
+		local size = math.min(common.DEF_BUF_SIZE, content_length)
 		local buf = recv(size)
 		io.write(buf)
 		content_length = content_length - #buf
