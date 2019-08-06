@@ -1,7 +1,9 @@
 #ifndef SCRIPT_LUA_H_
 #define SCRIPT_LUA_H_
 
-#include <lua.hpp>
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
 #include <memory>
 
 class Lua {
