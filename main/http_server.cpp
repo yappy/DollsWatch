@@ -140,32 +140,32 @@ void HttpServer::setup_pages()
 	};
 	httpd_register_uri_handler(m_handle, &uri_index_post);
 
-	httpd_uri_t uri_files_get {
-		.uri      = "/files",
+	httpd_uri_t uri_recovery_get {
+		.uri      = "/recovery",
 		.method   = HTTP_GET,
-		.handler  = page_files_get,
+		.handler  = page_recovery_get,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_files_get);
+	httpd_register_uri_handler(m_handle, &uri_recovery_get);
 
-	httpd_uri_t uri_upload_post {
-		.uri      = "/upload",
+	httpd_uri_t uri_recovery_post {
+		.uri      = "/recovery",
 		.method   = HTTP_POST,
-		.handler  = page_upload_post,
+		.handler  = page_recovery_post,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_upload_post);
+	httpd_register_uri_handler(m_handle, &uri_recovery_post);
 
-	httpd_uri_t uri_upload_delete {
-		.uri      = "/upload",
+	httpd_uri_t uri_recovery_delete {
+		.uri      = "/recovery",
 		.method   = HTTP_DELETE,
-		.handler  = page_upload_delete,
+		.handler  = page_recovery_delete,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_upload_delete);
+	httpd_register_uri_handler(m_handle, &uri_recovery_delete);
 }
 
-esp_err_t HttpServer::page_files_get(httpd_req_t *req)
+esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)
 {
 	esp_err_t ret;
 	int iret;
@@ -282,7 +282,7 @@ var post_file = function(upload_file) {
   var msg = document.getElementById("upload_msg");
 
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', './upload', true);
+  xhr.open('POST', './recovery', true);
   xhr.setRequestHeader('Content-type', content_type);
   xhr.setRequestHeader('X-FILE-NAME', file_name);
 
@@ -308,7 +308,7 @@ var post_file = function(upload_file) {
 
 var del_file = function(delete_file) {
   var xhr = new XMLHttpRequest();
-  xhr.open('DELETE', './upload', false);
+  xhr.open('DELETE', './recovery', false);
   xhr.setRequestHeader('X-FILE-NAME', delete_file);
   // blocking
   xhr.send(upload_file);
@@ -333,7 +333,7 @@ document.getElementById("upload_button").addEventListener(
 	return ESP_OK;
 }
 
-esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
+esp_err_t HttpServer::page_recovery_post(httpd_req_t *req)
 {
 	esp_err_t ret;
 	int iret;
@@ -383,7 +383,7 @@ esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
 	return ESP_OK;
 }
 
-esp_err_t HttpServer::page_upload_delete(httpd_req_t *req)
+esp_err_t HttpServer::page_recovery_delete(httpd_req_t *req)
 {
 	esp_err_t ret;
 	int iret;

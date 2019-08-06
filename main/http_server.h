@@ -18,9 +18,9 @@ private:
 	httpd_handle_t m_handle;
 
 	void setup_pages();
-	static esp_err_t page_files_get(httpd_req_t *req);
-	static esp_err_t page_upload_post(httpd_req_t *req);
-	static esp_err_t page_upload_delete(httpd_req_t *req);
+	static esp_err_t page_recovery_get(httpd_req_t *req);
+	static esp_err_t page_recovery_post(httpd_req_t *req);
+	static esp_err_t page_recovery_delete(httpd_req_t *req);
 	static esp_err_t page_script(httpd_req_t *req);
 };
 
