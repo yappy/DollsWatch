@@ -15,6 +15,7 @@ const long WIFI_NTP_TZ = 9 * 3600;
 const int WIFI_NTP_DAYLIGHT = 0;
 const char WIFI_NTP_SERVER[] = "ntp.jst.mfeed.ad.jp";
 
+const uint32_t HTTP_TASK_STACK_SIZE = 16 * 1024;
 const char HTTP_FILE_ROOT[] = "/";
 const uint32_t HTTP_GET_QUERY_MAX = 64;
 const uint32_t HTTP_IO_BUF_SIZE = 1024;

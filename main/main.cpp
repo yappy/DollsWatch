@@ -1,5 +1,6 @@
 #include <M5Stack.h>
 #include "conf.h"
+#include "script_lua.h"
 #include "app_info.h"
 #include "app_clock.h"
 #include "app_wifi_client.h"

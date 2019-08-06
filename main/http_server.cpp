@@ -1,12 +1,23 @@
 #include "http_server.h"
 #include "http_mime_type.h"
 #include "conf.h"
+#include "script_lua.h"
 #include <M5Stack.h>
 #include <http_parser.h>
 #include <ctype.h>
 #include <memory>
 
 namespace {
+
+	struct ExtraSpace {
+		httpd_req_t *req;
+	};
+	static_assert(sizeof(ExtraSpace) <= LUA_EXTRASPACE, "LUA_EXTRASPACE");
+
+	inline ExtraSpace& get_extra(lua_State *L)
+	{
+		return *(ExtraSpace *)lua_getextraspace(L);
+	}
 
 	esp_err_t send_http_error(httpd_req_t *req, int code)
 	{
@@ -90,6 +101,7 @@ void HttpServer::start()
 
 	httpd_config_t config = HTTPD_DEFAULT_CONFIG();
 	// config.task_priority = tskIDLE_PRIORITY+5
+	config.stack_size = HTTP_TASK_STACK_SIZE;
 	// config.server_port = 80
 	// config.max_uri_handlers = 8
 
@@ -113,62 +125,47 @@ bool HttpServer::is_running()
 
 void HttpServer::setup_pages()
 {
-	httpd_uri_t uri_index {
+	httpd_uri_t uri_index_get {
 		.uri      = "/",
 		.method   = HTTP_GET,
-		.handler  = page_index_get,
+		.handler  = page_script,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_index);
-
-	httpd_uri_t uri_files_get {
-		.uri      = "/files",
-		.method   = HTTP_GET,
-		.handler  = page_files_get,
-		.user_ctx = this,
-	};
-	httpd_register_uri_handler(m_handle, &uri_files_get);
-
-	httpd_uri_t uri_upload_post {
-		.uri      = "/upload",
+	httpd_register_uri_handler(m_handle, &uri_index_get);
+	httpd_uri_t uri_index_post {
+		.uri      = "/",
 		.method   = HTTP_POST,
-		.handler  = page_upload_post,
+		.handler  = page_script,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_upload_post);
+	httpd_register_uri_handler(m_handle, &uri_index_post);
 
-	httpd_uri_t uri_upload_delete {
-		.uri      = "/upload",
+	httpd_uri_t uri_recovery_get {
+		.uri      = "/recovery",
+		.method   = HTTP_GET,
+		.handler  = page_recovery_get,
+		.user_ctx = this,
+	};
+	httpd_register_uri_handler(m_handle, &uri_recovery_get);
+
+	httpd_uri_t uri_recovery_post {
+		.uri      = "/recovery",
+		.method   = HTTP_POST,
+		.handler  = page_recovery_post,
+		.user_ctx = this,
+	};
+	httpd_register_uri_handler(m_handle, &uri_recovery_post);
+
+	httpd_uri_t uri_recovery_delete {
+		.uri      = "/recovery",
 		.method   = HTTP_DELETE,
-		.handler  = page_upload_delete,
+		.handler  = page_recovery_delete,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_upload_delete);
+	httpd_register_uri_handler(m_handle, &uri_recovery_delete);
 }
 
-esp_err_t HttpServer::page_index_get(httpd_req_t *req)
-{
-	// httpd_resp_set_status()
-	// httpd_resp_set_type()
-	// httpd_resp_set_hdr()
-	static const char Page[] =
-R"(<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Hello</title>
-</head>
-<body>
-  <p>Hello my watch!!!!!</p>
-  <p><a href="./files">File Server</a></p>
-</body>
-</html>
-)";
-	httpd_resp_send(req, Page, sizeof(Page) - 1);
-	return ESP_OK;
-}
-
-esp_err_t HttpServer::page_files_get(httpd_req_t *req)
+esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)
 {
 	esp_err_t ret;
 	int iret;
@@ -278,12 +275,14 @@ R"(
   </ul>
 <script>
 var post_file = function(upload_file) {
-  var content_type = upload_file.type
+  var content_type = upload_file.type;
+  content_type = (content_type == "") ?
+    "application/octet-stream" : content_type;
   var file_name = upload_file.name;
   var msg = document.getElementById("upload_msg");
 
   var xhr = new XMLHttpRequest();
-  xhr.open('POST', './upload', true);
+  xhr.open('POST', './recovery', true);
   xhr.setRequestHeader('Content-type', content_type);
   xhr.setRequestHeader('X-FILE-NAME', file_name);
 
@@ -295,7 +294,7 @@ var post_file = function(upload_file) {
         setTimeout(function() { location.reload(true); }, 1000);
       }
       else {
-        msg.innerText = "error!";
+        msg.innerText = "error: " + xhr.statusText;
       }
     }
   };
@@ -309,7 +308,7 @@ var post_file = function(upload_file) {
 
 var del_file = function(delete_file) {
   var xhr = new XMLHttpRequest();
-  xhr.open('DELETE', './upload', false);
+  xhr.open('DELETE', './recovery', false);
   xhr.setRequestHeader('X-FILE-NAME', delete_file);
   // blocking
   xhr.send(upload_file);
@@ -334,7 +333,7 @@ document.getElementById("upload_button").addEventListener(
 	return ESP_OK;
 }
 
-esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
+esp_err_t HttpServer::page_recovery_post(httpd_req_t *req)
 {
 	esp_err_t ret;
 	int iret;
@@ -343,9 +342,11 @@ esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
 	ret = httpd_req_get_hdr_value_str(req, "X-FILE-NAME", name, sizeof(name));
 	if (ret != ESP_OK) {
 		// not found or too long
+		printf("NO X-FILE-NAME: %d\n", ret);
 		return send_http_error(req, 400);
 	}
 	if (!is_valid_filename(name)) {
+		printf("invalid file name: %s\n", name);
 		return send_http_error(req, 400);
 	}
 
@@ -382,7 +383,7 @@ esp_err_t HttpServer::page_upload_post(httpd_req_t *req)
 	return ESP_OK;
 }
 
-esp_err_t HttpServer::page_upload_delete(httpd_req_t *req)
+esp_err_t HttpServer::page_recovery_delete(httpd_req_t *req)
 {
 	esp_err_t ret;
 	int iret;
@@ -410,5 +411,149 @@ esp_err_t HttpServer::page_upload_delete(httpd_req_t *req)
 	}
 
 	httpd_resp_send(req, "", 0);
+	return ESP_OK;
+}
+
+esp_err_t HttpServer::page_script(httpd_req_t *req)
+{
+	esp_err_t ret;
+	int luaret;
+
+	const char *method = nullptr;
+	switch (req->method) {
+	case HTTP_GET:
+		method = "GET";
+		break;
+	case HTTP_POST:
+		method = "POST";
+		break;
+	default:
+		return ESP_FAIL;
+	}
+
+	char query[HTTP_GET_QUERY_MAX];
+	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
+	if (ret != ESP_OK) {
+		query[0] = '\0';
+	}
+
+	Lua lua;
+	bool ok = lua.init();
+	if (!ok) {
+		return send_http_error(req, 500);
+	}
+	lua_State *L = lua.get();
+	get_extra(L).req = req;
+
+	lua_pushboolean(L, 1);
+	lua_setglobal(L, "WEBAPP");
+	ok = lua.eval_file("/sd/root.lua");
+	if (!ok) {
+		return send_http_error(req, 500);
+	}
+
+	// TODO: may cause error
+	// push global function "init"
+	lua_settop(L, 0);
+	lua_getglobal(L, "init");
+	// call
+	luaret = lua_pcall(L, 0, 0, 0);
+	if (luaret != LUA_OK) {
+		printf("lua_pcall init: %d\n", luaret);
+		if (lua_gettop(L) >= 1) {
+			printf("%s\n", lua_tostring(L, -1));
+		}
+		return send_http_error(req, 500);;
+	}
+
+	lua_Integer content_len = (lua_Integer)req->content_len;
+	auto recv = [](lua_State *L) -> int {
+		lua_Integer lsize = luaL_checkinteger(L, 1);
+		if (lsize <= 0) {
+			luaL_error(L, "Recv size must > 0");
+			// never returns
+		}
+		lua_settop(L, 0);
+		// allocate buffer in lua mm with gc and push
+		size_t size = (size_t)lsize;
+		void *buf = lua_newuserdata(L, size);
+		// receive to it
+		esp_err_t ret = httpd_req_recv(get_extra(L).req, (char *)buf, size);
+		if (ret <= 0) {
+			luaL_error(L, "httpd_req_recv: %d", ret);
+			// never returns
+		}
+		// push received data as a string
+		lua_pushlstring(L, (const char *)buf, ret);
+		// discard buffer (to be gc-ed)
+		lua_remove(L, 1);
+		// returns received data (string)
+		return 1;
+	};
+
+	auto call_loop = [L, method, &query, content_len, recv]() -> int {
+		// TODO: may cause error
+		// push global function "loop"
+		lua_settop(L, 0);
+		lua_getglobal(L, "loop");
+		// push args
+		lua_pushliteral(L, "/sd/");
+		lua_pushstring(L, method);
+		lua_pushstring(L, query);
+		lua_pushinteger(L, content_len);
+		lua_pushcfunction(L, recv);
+		// call
+		int luaret = lua_pcall(L, 5, LUA_MULTRET, 0);
+		if (luaret != LUA_OK) {
+			printf("lua_pcall loop: %d\n", luaret);
+			if (lua_gettop(L) >= 1) {
+				printf("%s\n", lua_tostring(L, -1));
+			}
+		}
+		return luaret;
+	};
+
+	// string status, string type, string body
+	if (call_loop() != LUA_OK) {
+		return send_http_error(req, 500);
+	}
+	if (lua_gettop(L) != 2) {
+		printf("Expected 2, but %d\n", lua_gettop(L));
+		return send_http_error(req, 500);
+	}
+	if (lua_tostring(L, 1) == nullptr || lua_tostring(L, 2) == nullptr) {
+		printf("Expected string\n");
+		return send_http_error(req, 500);
+	}
+	httpd_resp_set_status(req, lua_tostring(L, 1));
+	httpd_resp_set_type(req, lua_tostring(L, 2));
+
+	// TODO: http header
+	if (call_loop() != LUA_OK) {
+		return ESP_FAIL;
+	}
+
+	// body
+	while (1) {
+		if (call_loop() != LUA_OK) {
+			return ESP_FAIL;
+		}
+		// void returned: end
+		if (lua_gettop(L) == 0) {
+			break;
+		}
+		if (lua_gettop(L) != 1) {
+			printf("Expected 1, but %d\n", lua_gettop(L));
+			return ESP_FAIL;
+		}
+		if (lua_tostring(L, 1) == nullptr) {
+			printf("Expected string\n");
+			return ESP_FAIL;
+		}
+		size_t size = 0;
+		const char *body = lua_tolstring(L, 1, &size);
+		httpd_resp_send_chunk(req, body, size);
+	}
+	httpd_resp_send_chunk(req, nullptr, 0);
 	return ESP_OK;
 }
