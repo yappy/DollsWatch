@@ -312,6 +312,15 @@ void WifiClientApp::redraw()
 	else if (status.state == WifiState::AP_STARTED) {
 		M5.Lcd.printf("IP Addr: %3d.%3d.%3d.%3d\n", 192, 168, 4, 1);
 	}
+
+	const uint32_t W = M5.Lcd.width();
+	const uint32_t H = M5.Lcd.height();
+	M5.Lcd.setTextDatum(BL_DATUM);
+	M5.Lcd.drawString("AccPnt", 0, H);
+	M5.Lcd.setTextDatum(BC_DATUM);
+	M5.Lcd.drawString("Stop", W / 2, H);
+	M5.Lcd.setTextDatum(BR_DATUM);
+	M5.Lcd.drawString("Station", W, H);
 }
 
 void WifiClientApp::load_config_file()
