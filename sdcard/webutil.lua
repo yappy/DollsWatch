@@ -133,15 +133,6 @@ function webutil.unescape(src)
 	return src
 end
 
---[[
-HTML special characters -> &xxx;
-]]
-function webutil.html_escape(src)
-	util.checkarg(src, "string")
-
-	return string.gsub(src, "[%&%\"%'%<%>]", HTML_ESC)
-end
-
 local HTML_ESC = {
 	["&"] = "&amp;",
 	['"'] = "&quot;",
@@ -149,6 +140,15 @@ local HTML_ESC = {
 	["<"] = "&lt;",
 	[">"] = "&gt",
 }
+--[[
+HTML special characters -> &xxx;
+]]
+function webutil.html_escape(src)
+	util.checkarg(src, "string")
+
+	local result = string.gsub(src, "[%&%\"%'%<%>]", HTML_ESC)
+	return result
+end
 
 local MINE_LIST = {
 	["aac"]		=	"audio/aac",
