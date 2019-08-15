@@ -41,4 +41,3 @@ script:
   - make -j2
   - make size
   - make size-components
-  - make size-symbols
