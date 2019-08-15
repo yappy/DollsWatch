@@ -1,4 +1,21 @@
 #include "script_lua.h"
+#include <sys/stat.h>
+
+namespace {
+
+int osex_mkdir(lua_State *L)
+{
+	const char *name = luaL_checkstring(L, 1);
+	int status = mkdir(name, 0777);
+	return luaL_fileresult(L, status == 0, name);
+}
+
+const luaL_Reg osexlib[] = {
+	{"mkdir", osex_mkdir},
+	{nullptr, nullptr}
+};
+
+}	// namespace
 
 void Lua::LuaDeleter::operator()(lua_State *lua)
 {
@@ -15,7 +32,11 @@ bool Lua::init()
 	}
 	m_lua.reset(raw_lua);
 
-	luaL_openlibs(m_lua.get());
+
+	lua_State *L = m_lua.get();
+	luaL_openlibs(L);
+	luaL_newlib(L, osexlib);
+	lua_setglobal(L, "osex");
 
 	return true;
 }

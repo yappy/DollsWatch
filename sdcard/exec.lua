@@ -59,9 +59,12 @@ local function post(lua_root, query, content_length, recv)
 	local output = ""
 	local orig_print = print
 	print = function(...)
-		local args = {...}
-		for i, msg in ipairs(args) do
-			output = output .. msg
+		local args = table.pack(...)
+		for i = 1, args.n do
+			if i ~= 1 then
+				output = output .. "\t"
+			end
+			output = output .. tostring(args[i])
 		end
 		output = output .. "\n"
 	end
