@@ -1,0 +1,26 @@
+language: python
+python: "2.7"
+
+addons:
+  apt:
+    packages:
+      - bison
+
+env:
+  - TOOLCHAIN=xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
+  - IDF_VER=v3.2.2
+
+before_install:
+  # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/linux-setup.html
+  - mkdir -p ~/esp
+  - pushd ~/esp
+  - wget https://dl.espressif.com/dl/$TOOLCHAIN
+  - tar -xzf $TOOLCHAIN
+  - export PATH=$PATH:$HOME/esp/xtensa-esp32-elf/bin
+  # Get ESP-IDF from github
+  - git clone --depth=1 -b $IDF_VER --recursive https://github.com/espressif/esp-idf.git
+  # Set the path to ESP-IDF directory
+  - export IDF_PATH=$HOME/esp/esp-idf
+
+script:
+  - make -j2
