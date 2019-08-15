@@ -38,7 +38,8 @@ install:
   - pip install -r $IDF_PATH/requirements.txt
 
 before_script:
-  - patch -p1 -d components/M5Stack/ < M5Stack.patch
+  - patch -p1 -d components/M5Stack/ < patch/M5Stack.patch
+  - patch -p1 -d components/arduino-esp32/libraries/AzureIoT/ < patch/AzureIoT.patch
 
 script:
   - make defconfig
