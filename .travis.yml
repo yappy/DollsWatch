@@ -16,6 +16,9 @@ env:
   global:
     - TOOLCHAIN=xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
     - IDF_VER=v3.2.2
+  matrix:
+    - SDKCONFIG_DEFAULTS=sdkconfig.defaults
+    - SDKCONFIG_DEFAULTS=sdkconfig.release
 
 before_install:
   # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html
