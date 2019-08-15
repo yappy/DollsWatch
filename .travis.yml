@@ -20,8 +20,8 @@ env:
     - IDF_VER=v3.2.2
 
 before_install:
-  - if [[ ! -d $HOME/esp ]]; then
   # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html
+  - if [[ ! -d $HOME/esp ]]; then
     mkdir -p $HOME/esp &&
     pushd $HOME/esp &&
     wget https://dl.espressif.com/dl/$TOOLCHAIN &&
