@@ -4,7 +4,10 @@ python: "2.7"
 addons:
   apt:
     packages:
+      - libncurses-dev
+      - flex
       - bison
+      - gperf
 
 env:
   global:
