@@ -7,8 +7,9 @@ addons:
       - bison
 
 env:
-  - TOOLCHAIN=xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
-  - IDF_VER=v3.2.2
+  global:
+    - TOOLCHAIN=xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
+    - IDF_VER=v3.2.2
 
 before_install:
   # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/linux-setup.html
