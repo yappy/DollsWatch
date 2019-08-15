@@ -44,5 +44,4 @@ before_script:
 script:
   - make defconfig
   - make -j2
-  - make size
   - make size-components
