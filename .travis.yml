@@ -29,7 +29,7 @@ before_install:
     export PATH=$PATH:$HOME/esp/xtensa-esp32-elf/bin &&
     git clone --depth=1 -b $IDF_VER --recursive https://github.com/espressif/esp-idf.git &&
     popd
-    fi
+    ;fi
   - export IDF_PATH=$HOME/esp/esp-idf
 
 install:
