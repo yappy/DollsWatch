@@ -1,6 +1,11 @@
 language: python
 python: "2.7"
 
+cache:
+  - pip
+  - directories:
+    - $HOME/esp
+
 addons:
   apt:
     packages:
@@ -16,8 +21,8 @@ env:
 
 before_install:
   # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html
-  - mkdir -p ~/esp
-  - pushd ~/esp
+  - mkdir -p $HOME/esp
+  - pushd $HOME/esp
   - wget https://dl.espressif.com/dl/$TOOLCHAIN
   - tar -xzf $TOOLCHAIN
   - export PATH=$PATH:$HOME/esp/xtensa-esp32-elf/bin
