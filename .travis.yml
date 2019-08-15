@@ -1,0 +1,56 @@
+language: python
+python:
+  - "3.7"
+
+cache:
+  - pip
+  - directories:
+    - $HOME/esp
+
+# Additional apt install
+addons:
+  apt:
+    packages:
+      - gperf
+
+env:
+  global:
+    # ESP32 toolchain archive file name
+    - TOOLCHAIN=xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
+    # ESP-IDF version git tag name
+    - IDF_VER=v3.2.2
+  matrix:
+    # Default configuration switch
+    - SDKCONFIG_DEFAULTS=sdkconfig.defaults
+    - SDKCONFIG_DEFAULTS=sdkconfig.release
+
+before_install:
+  # Prepare ESP32 toolchain and ESP-IDF (cached)
+  # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html
+  - if [[ ! -d $HOME/esp/esp-idf ]]; then
+    mkdir -p $HOME/esp &&
+    pushd $HOME/esp &&
+    wget https://dl.espressif.com/dl/$TOOLCHAIN &&
+    tar -xzf $TOOLCHAIN &&
+    rm $TOOLCHAIN &&
+    git clone --depth=1 -b $IDF_VER --recursive https://github.com/espressif/esp-idf.git &&
+    popd
+    ;fi
+  - export PATH=$PATH:$HOME/esp/xtensa-esp32-elf/bin
+  - export IDF_PATH=$HOME/esp/esp-idf
+
+install:
+  - pip install -r $IDF_PATH/requirements.txt
+
+before_script:
+  # Apply patches to sub components
+  - patch -p1 -d components/M5Stack/ < patch/M5Stack.patch
+  - patch -p1 -d components/arduino-esp32/libraries/AzureIoT/ < patch/AzureIoT.patch
+
+script:
+  # Create sdkconfig from $SDKCONFIG_DEFAULTS
+  - make defconfig
+  # Build
+  - make -j2
+  # Print size
+  - make size-components

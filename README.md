@@ -22,7 +22,7 @@ Access `http://192.168.obtained.ip/recovery` from your browser.
 Once you put main pages on SD card, `http://192.168.obtained.ip/`
 will be available.
 
-## Files setup
+### Files setup
 * Prepair micro SD card. (<=16GiB)
 * Write files under `sdcard/` to the SD card.
   * If you don't have SD writer, you can use recovery web page
@@ -53,6 +53,14 @@ See ESP-IDF Programming Guide "Get Started" page.
 * git clone this project.
   * `git submodule update --init --recursive`
 
+### Default config
+* Delete old file if exists
+  * `rm sdkconfig`
+* Debug build
+  * `make defconfig`
+* Release build
+  * `make SDKCONFIG_DEFAULTS=sdkconfig.release defconfig`
+
 ### Config (if needed)
 * `make menuconfig`
 
@@ -66,7 +74,7 @@ https://m5stack.com/pages/download
 
 ### Write to flash
 * Set `$ESPPORT` to "/dev/ttyS?"
-* `make flash ESPPORT=/dev/ttyS??`
+* `make flash`
   * `make app-flash` may be faster.
 
 ### Show UART output
@@ -83,4 +91,7 @@ https://m5stack.com/pages/download
 Attach a capacitor (e.g. 2.2uF) to RST - GND pin.
 
 ### Build error in M5Stack build
-Apply M5Stack.patch.
+Apply M5Stack.patch. (see .travis.yml)
+
+### Build error in AzureIoT release build
+Apply AzureIoT.patch. (see .travis.yml)
