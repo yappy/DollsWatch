@@ -12,16 +12,18 @@ env:
     - IDF_VER=v3.2.2
 
 before_install:
-  # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/linux-setup.html
+  # https://docs.espressif.com/projects/esp-idf/en/stable/get-started/index.html
   - mkdir -p ~/esp
   - pushd ~/esp
   - wget https://dl.espressif.com/dl/$TOOLCHAIN
   - tar -xzf $TOOLCHAIN
   - export PATH=$PATH:$HOME/esp/xtensa-esp32-elf/bin
-  # Get ESP-IDF from github
   - git clone --depth=1 -b $IDF_VER --recursive https://github.com/espressif/esp-idf.git
-  # Set the path to ESP-IDF directory
+  - popd
   - export IDF_PATH=$HOME/esp/esp-idf
+
+install:
+  - pip install -r $IDF_PATH/requirements.txt
 
 script:
   - make -j2
