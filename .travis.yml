@@ -23,6 +23,7 @@ before_install:
     pushd $HOME/esp &&
     wget https://dl.espressif.com/dl/$TOOLCHAIN &&
     tar -xzf $TOOLCHAIN &&
+    rm $TOOLCHAIN &&
     git clone --depth=1 -b $IDF_VER --recursive https://github.com/espressif/esp-idf.git &&
     popd
     ;fi
