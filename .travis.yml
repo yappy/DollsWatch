@@ -38,6 +38,7 @@ before_script:
   - patch -p1 -d components/M5Stack/ < M5Stack.patch
 
 script:
+  - make defconfig
   - make -j2
   - make size
   - make size-components
