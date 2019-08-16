@@ -3,8 +3,9 @@
 #include "conf.h"
 #include "script_lua.h"
 #include <M5Stack.h>
-#include <http_parser.h>
+#include <cJSON.h>
 #include <ctype.h>
+#include <dirent.h>
 #include <memory>
 
 namespace {
@@ -19,6 +20,12 @@ namespace {
 		return *(ExtraSpace *)lua_getextraspace(L);
 	}
 
+	template<size_t N>
+	esp_err_t send_literal_chunk(httpd_req_t *req, const char (&str)[N])
+	{
+		return httpd_resp_send_chunk(req, str, sizeof(str));
+	}
+
 	esp_err_t send_http_error(httpd_req_t *req, int code,
 		const char *msg = nullptr)
 	{
@@ -26,6 +33,9 @@ namespace {
 		switch (code) {
 		case 400:
 			status = "400 Bad Request";
+			break;
+		case 405:
+			status = "405 Method Not Allowed";
 			break;
 		case 500:
 		default:
@@ -182,6 +192,7 @@ void HttpServer::setup_pages()
 esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 {
 	esp_err_t ret;
+	HttpServer *self = static_cast<HttpServer *>(req->user_ctx);
 
 	char cmd[8];
 	ret = httpd_req_get_hdr_value_str(req, "FILE-CMD", cmd, sizeof(cmd));
@@ -190,15 +201,104 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 			"Valid FILE-CMD required in HTTP header");
 	}
 	if (strcmp(cmd, "LIST") == 0) {
-		return send_http_error(req, 500, "Not implemented");
+		if (req->method == HTTP_GET) {
+			return self->file_list(req);
+		}
+		else {
+			return send_http_error(req, 405);
+		}
 	}
 	else if (strcmp(cmd, "STAT") == 0) {
+		return send_http_error(req, 500, "Not implemented");
+	}
+	else if (strcmp(cmd, "READ") == 0) {
+		return send_http_error(req, 500, "Not implemented");
+	}
+	else if (strcmp(cmd, "WRITE") == 0) {
+		return send_http_error(req, 500, "Not implemented");
+	}
+	else if (strcmp(cmd, "TRUNC") == 0) {
 		return send_http_error(req, 500, "Not implemented");
 	}
 	else {
 		return send_http_error(req, 400,
 			"Valid FILE-CMD required in HTTP header");
 	}
+}
+
+
+void HttpServer::file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
+	bool is_first)
+{
+	printf("Scan: %s\n", namebuf);
+	DIR *dirp = opendir(namebuf);
+	if (dirp == nullptr) {
+		// print and ignore
+		perror("opendir");
+		return;
+	}
+
+	size_t orglen = strlen(namebuf);
+	struct dirent *entry;
+	while ((entry = readdir(dirp)) != nullptr) {
+		// dir + "/" + name + "/"? + nul
+		if (orglen + 1 + strlen(entry->d_name) + 1 >= size) {
+			// path length over, ignore
+			continue;
+		}
+		namebuf[orglen] = '/';
+		strcpy(namebuf + orglen + 1, entry->d_name);
+
+		if (entry->d_type == DT_REG) {
+			cJSON *json = cJSON_CreateStringReference(namebuf);
+			char *print = cJSON_Print(json);
+			if (!is_first) {
+				send_literal_chunk(req, ",\n");
+			}
+			httpd_resp_send_chunk(req, print, strlen(print));
+			cJSON_free(print);
+			is_first = false;
+		}
+		else if (entry->d_type == DT_DIR) {
+			// mark '/' at the end of name
+			strcat(namebuf, "/");
+
+			cJSON *json = cJSON_CreateStringReference(namebuf);
+			char *print = cJSON_Print(json);
+			if (!is_first) {
+				send_literal_chunk(req, ",\n");
+			}
+			httpd_resp_send_chunk(req, print, strlen(print));
+			cJSON_free(print);
+			is_first = false;
+
+			// remove '/'
+			namebuf[strlen(namebuf) - 1] = '\0';
+
+			// recursive call
+			file_list_rec(req, namebuf, size, is_first);
+		}
+		else {
+			// ignore
+		}
+
+		// restore path
+		namebuf[orglen] = '\0';
+	}
+	closedir(dirp);
+}
+
+esp_err_t HttpServer::file_list(httpd_req_t *req)
+{
+	// consume stack 1024
+	char namebuf[PATH_MAX] = "/sd";
+
+	httpd_resp_set_type(req, "application/json");
+	send_literal_chunk(req, "[");
+	file_list_rec(req, namebuf, sizeof(namebuf), true);
+	send_literal_chunk(req, "]\n");
+
+	return httpd_resp_send_chunk(req, nullptr, 0);
 }
 
 esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)

@@ -23,6 +23,10 @@ private:
 	static esp_err_t page_recovery_delete(httpd_req_t *req);
 	static esp_err_t page_recovery_file(httpd_req_t *req);
 	static esp_err_t page_script(httpd_req_t *req);
+
+	void file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
+		bool is_first);
+	esp_err_t file_list(httpd_req_t *req);
 };
 
 #endif // HTTP_SERVER_H_
