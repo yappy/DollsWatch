@@ -28,28 +28,20 @@ HTML top page
   * FILE-CMD: STAT
   * FILE-PATH: file path
 
-### GET /recovery/file CMD=READ
-* IN (HTTP header)
-  * FILE-CMD: READ
-  * FILE-PATH: file path
-  * FILE-OFFSET: read offset in decimal string
-* OUT
-  * Content-Type: application/octet-stream
-  * Body: read data
-
-### POST /recovery/file CMD=WRITE
+### POST /recovery/file CMD=UPLOAD
 * IN (HTTP header)
   * Content-Length: data size
-  * FILE-CMD: WRITE
+  * FILE-CMD: UPLOAD
   * FILE-PATH: file path
-  * WRITE-OFFSET: write offset in decimal string
 * IN (HTTP body)
   * data content
 
-### POST /recovery/file CMD=TRUNC
+### POST /recovery/file CMD=MKDIR
 * IN (HTTP header)
-  * Content-Length: data size
-  * FILE-CMD: WRITE
-  * WRITE-OFFSET: write offset in decimal string
-* IN (HTTP body)
-  * data content
+  * FILE-CMD: MKDIR
+  * FILE-PATH: file path
+
+### POST /recovery/file CMD=DEL
+* IN (HTTP header)
+  * FILE-CMD: DEL
+  * FILE-PATH: file path

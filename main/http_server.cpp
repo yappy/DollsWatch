@@ -211,14 +211,24 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 	else if (strcmp(cmd, "STAT") == 0) {
 		return send_http_error(req, 500, "Not implemented");
 	}
-	else if (strcmp(cmd, "READ") == 0) {
+	else if (strcmp(cmd, "UPLOAD") == 0) {
 		return send_http_error(req, 500, "Not implemented");
 	}
-	else if (strcmp(cmd, "WRITE") == 0) {
-		return send_http_error(req, 500, "Not implemented");
+	else if (strcmp(cmd, "MKDIR") == 0) {
+		if (req->method == HTTP_POST) {
+			return self->file_mkdir(req, "");
+		}
+		else {
+			return send_http_error(req, 405);
+		}
 	}
-	else if (strcmp(cmd, "TRUNC") == 0) {
-		return send_http_error(req, 500, "Not implemented");
+	else if (strcmp(cmd, "DEL") == 0) {
+		if (req->method == HTTP_POST) {
+			return self->file_del(req, "");
+		}
+		else {
+			return send_http_error(req, 405);
+		}
 	}
 	else {
 		return send_http_error(req, 400,
@@ -227,7 +237,7 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 }
 
 
-void HttpServer::file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
+bool HttpServer::file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
 	bool is_first)
 {
 	printf("Scan: %s\n", namebuf);
@@ -235,7 +245,7 @@ void HttpServer::file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
 	if (dirp == nullptr) {
 		// print and ignore
 		perror("opendir");
-		return;
+		return is_first;
 	}
 
 	size_t orglen = strlen(namebuf);
@@ -286,19 +296,34 @@ void HttpServer::file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
 		namebuf[orglen] = '\0';
 	}
 	closedir(dirp);
+	return is_first;
 }
 
 esp_err_t HttpServer::file_list(httpd_req_t *req)
 {
 	// consume stack 1024
-	char namebuf[PATH_MAX] = "/sd";
+	char namebuf[PATH_MAX];
 
 	httpd_resp_set_type(req, "application/json");
 	send_literal_chunk(req, "[\n");
-	file_list_rec(req, namebuf, sizeof(namebuf), true);
+	bool is_first = true;
+	for (const auto *root = HTTP_FILE_ROOTS; *root != nullptr; root++) {
+		strcpy(namebuf, *root);
+		is_first = file_list_rec(req, namebuf, sizeof(namebuf), is_first);
+	}
 	send_literal_chunk(req, "]\n");
 
 	return httpd_resp_send_chunk(req, nullptr, 0);
+}
+
+esp_err_t HttpServer::file_mkdir(httpd_req_t *req, const char *path)
+{
+	return send_http_error(req, 500, "Not implemented");
+}
+
+esp_err_t HttpServer::file_del(httpd_req_t *req, const char *path)
+{
+	return send_http_error(req, 500, "Not implemented");
 }
 
 esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)

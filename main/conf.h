@@ -22,4 +22,10 @@ const uint32_t HTTP_IO_BUF_SIZE = 1024;
 const uint32_t HTTP_FILE_NAME_MAX = 32;
 const uint32_t HTTP_FILE_PATH_MAX = sizeof(HTTP_FILE_ROOT) + HTTP_FILE_NAME_MAX;
 
+const char *const HTTP_FILE_ROOTS[] = {
+	"/sd",
+	"/spiffs",
+	nullptr,
+};
+
 #endif // CONF_H_
