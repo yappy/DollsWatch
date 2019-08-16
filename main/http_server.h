@@ -21,6 +21,7 @@ private:
 	static esp_err_t page_recovery_get(httpd_req_t *req);
 	static esp_err_t page_recovery_post(httpd_req_t *req);
 	static esp_err_t page_recovery_delete(httpd_req_t *req);
+	static esp_err_t page_recovery_file(httpd_req_t *req);
 	static esp_err_t page_script(httpd_req_t *req);
 };
 

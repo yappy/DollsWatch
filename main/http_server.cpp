@@ -19,20 +19,24 @@ namespace {
 		return *(ExtraSpace *)lua_getextraspace(L);
 	}
 
-	esp_err_t send_http_error(httpd_req_t *req, int code)
+	esp_err_t send_http_error(httpd_req_t *req, int code,
+		const char *msg = nullptr)
 	{
-		const char *msg, *status;
+		const char *status;
 		switch (code) {
 		case 400:
-			msg = status = "400 Bad Request";
+			status = "400 Bad Request";
 			break;
 		case 500:
 		default:
-			msg = status = "500 Internal Server Error";
+			status = "500 Internal Server Error";
 			break;
 		}
+		if (msg == nullptr) {
+			msg = status;
+		}
 		httpd_resp_set_status(req, status);
-		httpd_resp_set_type(req, "text/html");
+		httpd_resp_set_type(req, "text/plain");
 		return httpd_resp_send(req, msg, strlen(msg));
 	}
 
@@ -163,6 +167,38 @@ void HttpServer::setup_pages()
 		.user_ctx = this,
 	};
 	httpd_register_uri_handler(m_handle, &uri_recovery_delete);
+
+	httpd_uri_t uri_recovery_file {
+		.uri      = "/recovery/file",
+		.method   = HTTP_GET,
+		.handler  = page_recovery_file,
+		.user_ctx = this,
+	};
+	httpd_register_uri_handler(m_handle, &uri_recovery_file);
+	uri_recovery_file.method = HTTP_POST;
+	httpd_register_uri_handler(m_handle, &uri_recovery_file);
+}
+
+esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
+{
+	esp_err_t ret;
+
+	char cmd[8];
+	ret = httpd_req_get_hdr_value_str(req, "FILE-CMD", cmd, sizeof(cmd));
+	if (ret != ESP_OK) {
+		return send_http_error(req, 400,
+			"Valid FILE-CMD required in HTTP header");
+	}
+	if (strcmp(cmd, "LIST") == 0) {
+		return send_http_error(req, 500, "Not implemented");
+	}
+	else if (strcmp(cmd, "STAT") == 0) {
+		return send_http_error(req, 500, "Not implemented");
+	}
+	else {
+		return send_http_error(req, 400,
+			"Valid FILE-CMD required in HTTP header");
+	}
 }
 
 esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)

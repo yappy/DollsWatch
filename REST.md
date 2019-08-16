@@ -19,6 +19,10 @@ HTML top page
   * Content-Type: Changed by file extension
   * Body: full file content
 
+### GET /recovery/file CMD=LIST
+* IN (HTTP header)
+  * FILE-CMD: LIST
+
 ### GET /recovery/file CMD=STAT
 * IN (HTTP header)
   * FILE-CMD: STAT
