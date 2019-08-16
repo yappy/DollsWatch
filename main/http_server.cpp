@@ -135,14 +135,14 @@ void HttpServer::setup_pages()
 		.handler  = page_script,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_index_get);
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_index_get));
 	httpd_uri_t uri_index_post {
 		.uri      = "/",
 		.method   = HTTP_POST,
 		.handler  = page_script,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_index_post);
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_index_post));
 
 	httpd_uri_t uri_recovery_get {
 		.uri      = "/recovery",
@@ -150,7 +150,7 @@ void HttpServer::setup_pages()
 		.handler  = page_recovery_get,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_recovery_get);
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_get));
 
 	httpd_uri_t uri_recovery_post {
 		.uri      = "/recovery",
@@ -158,7 +158,7 @@ void HttpServer::setup_pages()
 		.handler  = page_recovery_post,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_recovery_post);
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_post));
 
 	httpd_uri_t uri_recovery_delete {
 		.uri      = "/recovery",
@@ -166,7 +166,7 @@ void HttpServer::setup_pages()
 		.handler  = page_recovery_delete,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_recovery_delete);
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_delete));
 
 	httpd_uri_t uri_recovery_file {
 		.uri      = "/recovery/file",
@@ -174,9 +174,9 @@ void HttpServer::setup_pages()
 		.handler  = page_recovery_file,
 		.user_ctx = this,
 	};
-	httpd_register_uri_handler(m_handle, &uri_recovery_file);
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_file));
 	uri_recovery_file.method = HTTP_POST;
-	httpd_register_uri_handler(m_handle, &uri_recovery_file);
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_file));
 }
 
 esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
