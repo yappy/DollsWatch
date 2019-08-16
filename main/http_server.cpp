@@ -251,7 +251,7 @@ void HttpServer::file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
 
 		if (entry->d_type == DT_REG) {
 			cJSON *json = cJSON_CreateStringReference(namebuf);
-			char *print = cJSON_Print(json);
+			char *print = cJSON_PrintUnformatted(json);
 			if (!is_first) {
 				send_literal_chunk(req, ",\n");
 			}
@@ -264,7 +264,7 @@ void HttpServer::file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
 			strcat(namebuf, "/");
 
 			cJSON *json = cJSON_CreateStringReference(namebuf);
-			char *print = cJSON_Print(json);
+			char *print = cJSON_PrintUnformatted(json);
 			if (!is_first) {
 				send_literal_chunk(req, ",\n");
 			}
@@ -294,7 +294,7 @@ esp_err_t HttpServer::file_list(httpd_req_t *req)
 	char namebuf[PATH_MAX] = "/sd";
 
 	httpd_resp_set_type(req, "application/json");
-	send_literal_chunk(req, "[");
+	send_literal_chunk(req, "[\n");
 	file_list_rec(req, namebuf, sizeof(namebuf), true);
 	send_literal_chunk(req, "]\n");
 
