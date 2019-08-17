@@ -1,5 +1,29 @@
 # REST API Specification
 
+## CURL Example
+```
+curl http://<ipaddr>/recovery/file \
+-v -X GET \
+-H "FILE-CMD:LIST"
+```
+
+```
+curl http://<ipaddr>/recovery/file \
+-v -X POST \
+-H "Content-Type: application/octet-stream" \
+-H "FILE-CMD: UPLOAD" \
+-H "FILE-PATH: /sd/uptest.jpg" \
+--data-binary @yappy_house_240.jpg
+```
+
+* -v prints dedailed communication log. (e.g. HTTP headers)
+* -X changes HTTP method.
+* -H adds a HTTP header.
+  * `application/x-www-form-urlencoded` (curl default) is not supported.
+    Change Content-Type to send binary as is.
+* --data-binary sends a local file as HTTP request body.
+
+
 ## Recovery SD files
 http://_ipaddr_/recovery/file
 
