@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8" />
   <title>File Server</title>
 </head>
+
 <body>
   <h1>File Server</h1>
 
@@ -14,59 +16,110 @@
 
   <hr>
 
-  <ul>
+  <div id="list_status">File List Status</div>
+  <ul id="file_list">
   </ul>
-  <script>
-  var post_file = function(upload_file) {
-    var content_type = upload_file.type;
-    content_type = (content_type == "") ?
-      "application/octet-stream" : content_type;
-    var file_name = upload_file.name;
-    var msg = document.getElementById("upload_msg");
 
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', './recovery', true);
-    xhr.setRequestHeader('Content-type', content_type);
-    xhr.setRequestHeader('X-FILE-NAME', file_name);
+<script>
+var update_list = function() {
+  var status = document.getElementById("list_status");
+  var ul = document.getElementById("file_list");
 
-    var progress = document.getElementById("upload_prog");
-    xhr.onreadystatechange = function () {
-      if(xhr.readyState == 4) {
-        if (xhr.status === 200) {
-          msg.innerText = xhr.responseText;
-          setTimeout(function() { location.reload(true); }, 1000);
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', './recovery/file', true);
+  xhr.setRequestHeader('FILE-CMD', "LIST");
+  xhr.onreadystatechange = function () {
+    if(xhr.readyState == 4) {
+      if (xhr.status === 200) {
+        // parse json
+        var list = JSON.parse(xhr.responseText);
+        // remove all
+        while (ul.firstChild) {
+          ul.removeChild(ul.firstChild);
         }
-        else {
-          msg.innerText = "error: " + xhr.statusText;
-        }
+        // add list element
+        list.forEach(function(path) {
+          var li = document.createElement("li");
+          var del_button = document.createElement("input");
+          del_button.type = "button";
+          del_button.value = "Delete";
+          del_button.onclick = function() {
+            del_file(path);
+          };
+          li.appendChild(del_button);
+          li.appendChild(document.createTextNode(path));
+          ul.appendChild(li);
+        });
+        status.innerText = "Files: " + list.length;
       }
-    };
-    xhr.upload.onprogress = function(e) {
-      if (e.lengthComputable) {
-        progress.value = (e.loaded / e.total) * 100;
+      else {
+        status.innerText = "error: " + xhr.statusText;
       }
-    };
-    xhr.send(upload_file);
+    }
   };
+  status.innerText = "Updating file list...";
+  xhr.send();
+};
 
-  var del_file = function(delete_file) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('DELETE', './recovery', false);
-    xhr.setRequestHeader('X-FILE-NAME', delete_file);
-    // blocking
-    xhr.send(upload_file);
-    location.reload(true);
+var post_file = function(upload_file) {
+  var content_type = upload_file.type;
+  content_type = (content_type == "") ?
+    "application/octet-stream" : content_type;
+  var file_name = upload_file.name;
+  var msg = document.getElementById("upload_msg");
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', './recovery/file', true);
+  xhr.setRequestHeader('Content-type', content_type);
+  xhr.setRequestHeader('FILE-PATH', file_name);
+
+  var progress = document.getElementById("upload_prog");
+  xhr.onreadystatechange = function () {
+    if(xhr.readyState == 4) {
+      if (xhr.status === 200) {
+        msg.innerText = xhr.responseText;
+        setTimeout(function() { location.reload(true); }, 1000);
+      }
+      else {
+        msg.innerText = "error: " + xhr.statusText;
+      }
+    }
   };
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) {
+      progress.value = (e.loaded / e.total) * 100;
+    }
+  };
+  xhr.send(upload_file);
+};
 
-  document.getElementById("upload_button").addEventListener(
-    "click",
-    function() {
-      var element_file = document.getElementById("upload_file");
-      var upload_file = element_file.files[0];
-      post_file(upload_file);
-    },
-    false);
-  </script>
+var del_file = function(delete_file) {
+  // remove last "/"
+  if (delete_file.endsWith("/")) {
+    delete_file = delete_file.substring(0, delete_file.length - 1);
+  }
 
-  </body>
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', './recovery/file', false);
+  xhr.setRequestHeader('FILE-CMD', "DELETE");
+  xhr.setRequestHeader('FILE-PATH', delete_file);
+  // blocking
+  xhr.send(upload_file);
+  update_list();
+};
+
+document.getElementById("upload_button").addEventListener(
+  "click",
+  function() {
+    var element_file = document.getElementById("upload_file");
+    var upload_file = element_file.files[0];
+    post_file(upload_file);
+  },
+  false);
+
+update_list();
+</script>
+
+</body>
+
 </html>

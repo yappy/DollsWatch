@@ -256,7 +256,7 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 			return send_http_error(req, 405);
 		}
 	}
-	else if (strcmp(cmd, "DEL") == 0) {
+	else if (strcmp(cmd, "DELETE") == 0) {
 		if (req->method == HTTP_POST) {
 			char path[PATH_MAX];
 			ret = httpd_req_get_hdr_value_str(
