@@ -14,7 +14,7 @@
 
   <div>
     <label for="dir">Directory: </label>
-    <input id="dir" type="text" value="/sd" /> /
+    <input id="dir" type="text" size="32" value="/sd" /> /
     <input id="mkdir" type="text" value="newdir" />
     <input id="mkdir_button" type="button" value="make directory" />
   </div>
@@ -48,15 +48,29 @@ var update_list = function() {
         }
         // add list element
         list.forEach(function(path) {
+          var dir = path;
+          var last_slash = path.lastIndexOf("/");
+          if (last_slash >= 0) {
+            dir = path.substring(0, last_slash);
+          }
+
           var li = document.createElement("li");
+          var setdir_button = document.createElement("input");
+          setdir_button.type = "button";
+          setdir_button.value = "Set Dir";
+          setdir_button.onclick = function() {
+            document.getElementById("dir").value = dir;
+          }
           var del_button = document.createElement("input");
           del_button.type = "button";
           del_button.value = "Delete";
           del_button.onclick = function() {
             del_file(path);
           };
+
+          li.appendChild(setdir_button);
           li.appendChild(del_button);
-          li.appendChild(document.createTextNode(path));
+          li.appendChild(document.createTextNode(" " + path));
           ul.appendChild(li);
         });
         status.innerText = "Files: " + list.length;
