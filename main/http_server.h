@@ -27,6 +27,7 @@ private:
 	bool file_list_rec(httpd_req_t *req, char *namebuf, size_t size,
 		bool is_first);
 	esp_err_t file_list(httpd_req_t *req);
+	esp_err_t file_upload(httpd_req_t *req, const char *path);
 	esp_err_t file_mkdir(httpd_req_t *req, const char *path);
 	esp_err_t file_del(httpd_req_t *req, const char *path);
 };

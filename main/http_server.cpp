@@ -218,6 +218,19 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 		return send_http_error(req, 500, "Not implemented");
 	}
 	else if (strcmp(cmd, "UPLOAD") == 0) {
+		if (req->method == HTTP_POST) {
+			char path[PATH_MAX];
+			ret = httpd_req_get_hdr_value_str(
+				req, "FILE-PATH", path, sizeof(path));
+			if (ret != ESP_OK) {
+				return send_http_error(req, 400,
+					"Invalid FILE-PATH in HTTP header");
+			}
+			return self->file_upload(req, path);
+		}
+		else {
+			return send_http_error(req, 405);
+		}
 		return send_http_error(req, 500, "Not implemented");
 	}
 	else if (strcmp(cmd, "MKDIR") == 0) {
@@ -334,6 +347,44 @@ esp_err_t HttpServer::file_list(httpd_req_t *req)
 	send_literal_chunk(req, "]\n");
 
 	return httpd_resp_send_chunk(req, nullptr, 0);
+}
+
+esp_err_t HttpServer::file_upload(httpd_req_t *req, const char *path)
+{
+	if (!is_valid_filepath(path)) {
+		return send_http_error(req, 400, "Invalid file path");
+	}
+
+	printf("upload: %s\n", path);
+	auto fp_del = [](FILE *fp) {
+		fclose(fp);
+	};
+	std::unique_ptr<FILE, decltype(fp_del)> fp{fopen(path, "wb"), fp_del};
+	if (fp == nullptr) {
+		return send_http_error(req, 500, "Open failed");
+	}
+
+	auto buf = std::unique_ptr<uint8_t[]>(
+		new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
+	if (buf == nullptr) {
+		return send_http_error(req, 500, "Memory error");
+	}
+	size_t rest = req->content_len;
+	while (rest > 0) {
+		size_t recv_size = httpd_req_recv(
+			req, (char *)buf.get(), min(rest, HTTP_IO_BUF_SIZE));
+		if (recv_size > 0) {
+			rest -= recv_size;
+			if (fwrite(buf.get(), recv_size, 1, fp.get()) != 1) {
+				return send_http_error(req, 500, "Write failed");
+			}
+		}
+		else {
+			return ESP_FAIL;
+		}
+	}
+	httpd_resp_send(req, "", 0);
+	return ESP_OK;
 }
 
 esp_err_t HttpServer::file_mkdir(httpd_req_t *req, const char *path)
