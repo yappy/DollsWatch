@@ -12,9 +12,15 @@
 
   <hr>
 
+  <div>
+    <label for="dir">Directory: </label>
+    <input id="dir" type="text" value="/sd" /> /
+    <input id="mkdir" type="text" value="newdir" />
+    <input id="mkdir_button" type="button" value="make directory" />
+  </div>
   <div><input id="upload_file" type="file" /></div>
   <div><input id="upload_button" type="button" value="upload" /></div>
-  <div><progress id="upload_prog" max="100" value="0" /></div>
+  <div><progress id="upload_prog" max="100" value="0">0%</progress></div>
   <div><p id="upload_msg"></p></div>
 
   <hr>
@@ -98,6 +104,21 @@ var post_file = function(upload_file) {
   xhr.send(upload_file);
 };
 
+var mkdir = function(path) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', './recovery/file', false);
+  xhr.setRequestHeader('FILE-CMD', "MKDIR");
+  xhr.setRequestHeader('FILE-PATH', path);
+  // blocking
+  xhr.send(upload_file);
+  if (xhr.status == 200) {
+    update_list();
+  }
+  else {
+    alert(xhr.status + " " + xhr.statusText + ": " + xhr.responseText);
+  }
+};
+
 var del_file = function(delete_file) {
   // remove last "/"
   if (delete_file.endsWith("/")) {
@@ -110,7 +131,12 @@ var del_file = function(delete_file) {
   xhr.setRequestHeader('FILE-PATH', delete_file);
   // blocking
   xhr.send(upload_file);
-  update_list();
+  if (xhr.status == 200) {
+    update_list();
+  }
+  else {
+    alert(xhr.status + " " + xhr.statusText + ": " + xhr.responseText);
+  }
 };
 
 document.getElementById("upload_button").addEventListener(
@@ -119,6 +145,14 @@ document.getElementById("upload_button").addEventListener(
     var element_file = document.getElementById("upload_file");
     var upload_file = element_file.files[0];
     post_file(upload_file);
+  },
+  false);
+document.getElementById("mkdir_button").addEventListener(
+  "click",
+  function() {
+    var mkdir_path = document.getElementById("dir").value + "/" +
+      document.getElementById("mkdir").value;
+    mkdir(mkdir_path);
   },
   false);
 
