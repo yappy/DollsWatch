@@ -25,7 +25,7 @@ namespace {
 	template<size_t N>
 	esp_err_t send_literal_chunk(httpd_req_t *req, const char (&str)[N])
 	{
-		return httpd_resp_send_chunk(req, str, sizeof(str));
+		return httpd_resp_send_chunk(req, str, sizeof(str) - 1);
 	}
 
 	esp_err_t send_http_error(httpd_req_t *req, int code,
