@@ -1,6 +1,7 @@
 #include "http_server.h"
 #include "http_mime_type.h"
 #include "conf.h"
+#include "res/res.h"
 #include "script_lua.h"
 #include <M5Stack.h>
 #include <cJSON.h>
@@ -168,6 +169,13 @@ void HttpServer::setup_pages()
 		.user_ctx = this,
 	};
 	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_get));
+	httpd_uri_t uri_recovery_get2 {
+		.uri      = "/recovery2",
+		.method   = HTTP_GET,
+		.handler  = page_recovery_get2,
+		.user_ctx = this,
+	};
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_get2));
 
 	httpd_uri_t uri_recovery_post {
 		.uri      = "/recovery",
@@ -415,6 +423,13 @@ esp_err_t HttpServer::file_del(httpd_req_t *req, const char *path)
 	}
 
 	return httpd_resp_send(req, "", 0);
+}
+
+
+esp_err_t HttpServer::page_recovery_get2(httpd_req_t *req)
+{
+	return httpd_resp_send(req, (const char *)file_server_html_start,
+		file_server_html_end - file_server_html_start);
 }
 
 esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)

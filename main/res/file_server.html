@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>File Server</title>
+</head>
+<body>
+  <h1>File Server</h1>
+
+  <div><input id="upload_file" type="file" /></div>
+  <div><input id="upload_button" type="button" value="upload" /></div>
+  <div><progress id="upload_prog" max="100" value="0" /></div>
+  <div><p id="upload_msg"></p></div>
+
+  <hr>
+
+  <ul>
+  </ul>
+  <script>
+  var post_file = function(upload_file) {
+    var content_type = upload_file.type;
+    content_type = (content_type == "") ?
+      "application/octet-stream" : content_type;
+    var file_name = upload_file.name;
+    var msg = document.getElementById("upload_msg");
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', './recovery', true);
+    xhr.setRequestHeader('Content-type', content_type);
+    xhr.setRequestHeader('X-FILE-NAME', file_name);
+
+    var progress = document.getElementById("upload_prog");
+    xhr.onreadystatechange = function () {
+      if(xhr.readyState == 4) {
+        if (xhr.status === 200) {
+          msg.innerText = xhr.responseText;
+          setTimeout(function() { location.reload(true); }, 1000);
+        }
+        else {
+          msg.innerText = "error: " + xhr.statusText;
+        }
+      }
+    };
+    xhr.upload.onprogress = function(e) {
+      if (e.lengthComputable) {
+        progress.value = (e.loaded / e.total) * 100;
+      }
+    };
+    xhr.send(upload_file);
+  };
+
+  var del_file = function(delete_file) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('DELETE', './recovery', false);
+    xhr.setRequestHeader('X-FILE-NAME', delete_file);
+    // blocking
+    xhr.send(upload_file);
+    location.reload(true);
+  };
+
+  document.getElementById("upload_button").addEventListener(
+    "click",
+    function() {
+      var element_file = document.getElementById("upload_file");
+      var upload_file = element_file.files[0];
+      post_file(upload_file);
+    },
+    false);
+  </script>
+
+  </body>
+</html>
