@@ -18,6 +18,7 @@ private:
 	httpd_handle_t m_handle;
 
 	void setup_pages();
+	static esp_err_t page_recovery_download(httpd_req_t *req);
 	static esp_err_t page_recovery_get(httpd_req_t *req);
 	static esp_err_t page_recovery_get2(httpd_req_t *req);
 	static esp_err_t page_recovery_post(httpd_req_t *req);

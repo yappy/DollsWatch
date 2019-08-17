@@ -43,7 +43,7 @@ var update_list = function() {
   var ul = document.getElementById("file_list");
 
   var xhr = new XMLHttpRequest();
-  xhr.open('GET', './recovery/file', true);
+  xhr.open('GET', '/recovery/file', true);
   xhr.setRequestHeader('FILE-CMD', "LIST");
   xhr.onreadystatechange = function () {
     if(xhr.readyState == 4) {
@@ -76,10 +76,13 @@ var update_list = function() {
           del_button.onclick = function() {
             del_file(path);
           };
+          var link = document.createElement("a");
+          link.href = "/recovery/download?" + encodeURIComponent(path);
+          link.appendChild(document.createTextNode(path));
 
           li.appendChild(setdir_button);
           li.appendChild(del_button);
-          li.appendChild(document.createTextNode(" " + path));
+          li.appendChild(link);
           ul.appendChild(li);
         });
         status.innerText = "Files: " + list.length;
