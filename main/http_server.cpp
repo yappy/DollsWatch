@@ -5,6 +5,7 @@
 #include <M5Stack.h>
 #include <cJSON.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #include <dirent.h>
 #include <memory>
 
@@ -50,15 +51,21 @@ namespace {
 		return httpd_resp_send(req, msg, strlen(msg));
 	}
 
-	bool is_valid_filename(const char *str)
+	bool is_valid_filepath(const char *str)
 	{
-		bool appear_normal = false;
+		bool begin_with_alnum = false;
 		while (*str != '\0') {
 			if (isalnum(*str)) {
 				// OK
-				appear_normal = true;
+				begin_with_alnum = true;
 			}
-			else if (*str == '.' || *str == '_' || *str == '-') {
+			else if (*str == '.') {
+				// ".." not allowed
+				if (*(str + 1) == '.') {
+					return false;
+				}
+			}
+			else if (*str == '/' || *str == '_' || *str == '-') {
 				// OK
 			}
 			else {
@@ -66,7 +73,7 @@ namespace {
 			}
 			str++;
 		}
-		return appear_normal;
+		return begin_with_alnum;
 	}
 
 	const char *search_mime_type(const char *filename)
@@ -197,8 +204,7 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 	char cmd[8];
 	ret = httpd_req_get_hdr_value_str(req, "FILE-CMD", cmd, sizeof(cmd));
 	if (ret != ESP_OK) {
-		return send_http_error(req, 400,
-			"Valid FILE-CMD required in HTTP header");
+		return send_http_error(req, 400, "Invalid FILE-CMD in HTTP header");
 	}
 	if (strcmp(cmd, "LIST") == 0) {
 		if (req->method == HTTP_GET) {
@@ -216,7 +222,14 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 	}
 	else if (strcmp(cmd, "MKDIR") == 0) {
 		if (req->method == HTTP_POST) {
-			return self->file_mkdir(req, "");
+			char path[PATH_MAX];
+			ret = httpd_req_get_hdr_value_str(
+				req, "FILE-PATH", path, sizeof(path));
+			if (ret != ESP_OK) {
+				return send_http_error(req, 400,
+					"Invalid FILE-PATH in HTTP header");
+			}
+			return self->file_mkdir(req, path);
 		}
 		else {
 			return send_http_error(req, 405);
@@ -224,7 +237,14 @@ esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 	}
 	else if (strcmp(cmd, "DEL") == 0) {
 		if (req->method == HTTP_POST) {
-			return self->file_del(req, "");
+			char path[PATH_MAX];
+			ret = httpd_req_get_hdr_value_str(
+				req, "FILE-PATH", path, sizeof(path));
+			if (ret != ESP_OK) {
+				return send_http_error(req, 400,
+					"Invalid FILE-PATH in HTTP header");
+			}
+			return self->file_del(req, path);
 		}
 		else {
 			return send_http_error(req, 405);
@@ -318,12 +338,32 @@ esp_err_t HttpServer::file_list(httpd_req_t *req)
 
 esp_err_t HttpServer::file_mkdir(httpd_req_t *req, const char *path)
 {
-	return send_http_error(req, 500, "Not implemented");
+	if (!is_valid_filepath(path)) {
+		return send_http_error(req, 400, "Invalid file path");
+	}
+
+	int ret = mkdir(path, 0777);
+	if (ret < 0) {
+		perror("mkdir");
+		return send_http_error(req, 500, "mkdir failed");
+	}
+
+	return httpd_resp_send(req, "", 0);
 }
 
 esp_err_t HttpServer::file_del(httpd_req_t *req, const char *path)
 {
-	return send_http_error(req, 500, "Not implemented");
+	if (!is_valid_filepath(path)) {
+		return send_http_error(req, 400, "Invalid file path");
+	}
+
+	int ret = remove(path);
+	if (ret < 0) {
+		perror("remove");
+		return send_http_error(req, 500, "remove failed");
+	}
+
+	return httpd_resp_send(req, "", 0);
 }
 
 esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)
@@ -335,7 +375,7 @@ esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)
 	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
 	if (ret == ESP_OK) {
 		// query on, download mode
-		if (!is_valid_filename(query)) {
+		if (!is_valid_filepath(query)) {
 			return send_http_error(req, 400);
 		}
 
@@ -417,7 +457,7 @@ R"(
 			continue;
 		}
 		const char *name = entry.name() + strlen(dir.name());
-		if (!is_valid_filename(name)) {
+		if (!is_valid_filepath(name)) {
 			continue;
 		}
 		char buf[HTTP_FILE_NAME_MAX * 3 + 128];
@@ -506,7 +546,7 @@ esp_err_t HttpServer::page_recovery_post(httpd_req_t *req)
 		printf("NO X-FILE-NAME: %d\n", ret);
 		return send_http_error(req, 400);
 	}
-	if (!is_valid_filename(name)) {
+	if (!is_valid_filepath(name)) {
 		printf("invalid file name: %s\n", name);
 		return send_http_error(req, 400);
 	}
@@ -555,7 +595,7 @@ esp_err_t HttpServer::page_recovery_delete(httpd_req_t *req)
 		// not found or too long
 		return send_http_error(req, 400);
 	}
-	if (!is_valid_filename(name)) {
+	if (!is_valid_filepath(name)) {
 		return send_http_error(req, 400);
 	}
 
