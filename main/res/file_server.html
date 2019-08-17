@@ -19,12 +19,16 @@
 <div>
   <label for="dir">Directory: </label>
   <input id="dir" type="text" size="32" value="/sd" /> /
-  <input id="mkdir" type="text" value="newdir" />
+</div>
+<div>
+  <input id="mkdir" type="text" size="16" value="newdir" />
   <input id="mkdir_button" type="button" value="make directory" />
 </div>
-<div><input id="upload_file" type="file" /></div>
-<div><input id="upload_button" type="button" value="upload" /></div>
-<div><progress id="upload_prog" max="100" value="0">0%</progress></div>
+<div>
+  <input id="upload_file" type="file" />
+  <input id="upload_button" type="button" value="upload" />
+  <progress id="upload_prog" max="100" value="0">0%</progress>
+</div>
 <div><p id="upload_msg"></p></div>
 
 <hr>
@@ -94,13 +98,14 @@ var post_file = function(upload_file) {
   content_type = (content_type == "") ?
     "application/octet-stream" : content_type;
   var file_name = upload_file.name;
+  var file_path = document.getElementById("dir").value + "/" + file_name;
   var msg = document.getElementById("upload_msg");
 
   var xhr = new XMLHttpRequest();
   xhr.open('POST', './recovery/file', true);
   xhr.setRequestHeader('Content-type', content_type);
   xhr.setRequestHeader('FILE-CMD', "UPLOAD");
-  xhr.setRequestHeader('FILE-PATH', file_name);
+  xhr.setRequestHeader('FILE-PATH', file_path);
 
   var progress = document.getElementById("upload_prog");
   xhr.onreadystatechange = function () {
