@@ -8,6 +8,9 @@
 
 <body>
   <h1>File Server</h1>
+  <p>Notice: Cannot delete a not-empty directory.</p>
+
+  <hr>
 
   <div><input id="upload_file" type="file" /></div>
   <div><input id="upload_button" type="button" value="upload" /></div>
@@ -71,6 +74,7 @@ var post_file = function(upload_file) {
   var xhr = new XMLHttpRequest();
   xhr.open('POST', './recovery/file', true);
   xhr.setRequestHeader('Content-type', content_type);
+  xhr.setRequestHeader('FILE-CMD', "UPLOAD");
   xhr.setRequestHeader('FILE-PATH', file_name);
 
   var progress = document.getElementById("upload_prog");
@@ -78,10 +82,11 @@ var post_file = function(upload_file) {
     if(xhr.readyState == 4) {
       if (xhr.status === 200) {
         msg.innerText = xhr.responseText;
-        setTimeout(function() { location.reload(true); }, 1000);
+        update_list();
       }
       else {
-        msg.innerText = "error: " + xhr.statusText;
+        msg.innerText = xhr.status + " " + xhr.statusText + ": " +
+          xhr.responseText;
       }
     }
   };
@@ -117,6 +122,7 @@ document.getElementById("upload_button").addEventListener(
   },
   false);
 
+// initial update
 update_list();
 </script>
 
