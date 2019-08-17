@@ -52,6 +52,37 @@ namespace {
 		return httpd_resp_send(req, msg, strlen(msg));
 	}
 
+	void url_decode(char *buf)
+	{
+		const char *hex = "0123456789abcdefABCDEF";
+		const uint32_t conv[] = { 0,1,2,3,4,5,6,7,8,9,
+			10,11,12,13,14,15, 10,11,12,13,14,15 };
+		char *in = buf;
+		char *out = buf;
+		while (*in != '\0') {
+			if (*in == '%') {
+				if (in[1] == '\0' || in[2] == '\0') {
+					goto ASIS;
+				}
+				const char *p1 = strchr(hex, in[1]);
+				const char *p2 = strchr(hex, in[2]);
+				if (p1 == nullptr || p2 == nullptr) {
+					goto ASIS;
+				}
+				char c = (char)((conv[p1 - hex] << 4) | conv[p2 - hex]);
+				*out = c;
+				in += 3;
+				out++;
+				continue;
+			}
+ASIS:
+			*out = *in;
+			in++;
+			out++;
+		}
+		*out = '\0';
+	}
+
 	bool is_valid_filepath(const char *str)
 	{
 		bool found = false;
@@ -455,6 +486,7 @@ esp_err_t HttpServer::page_recovery_download(httpd_req_t *req)
 	if (ret != ESP_OK) {
 		return send_http_error(req, 400, "File path query required");
 	}
+	url_decode(query);
 	if (!is_valid_filepath(query)) {
 		return send_http_error(req, 400, "Invalid file path");
 	}
@@ -500,6 +532,7 @@ esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)
 	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
 	if (ret == ESP_OK) {
 		// query on, download mode
+		url_decode(query);
 		if (!is_valid_filepath(query)) {
 			return send_http_error(req, 400);
 		}
@@ -762,6 +795,7 @@ esp_err_t HttpServer::page_script(httpd_req_t *req)
 	if (ret != ESP_OK) {
 		query[0] = '\0';
 	}
+	url_decode(query);
 
 	Lua lua;
 	bool ok = lua.init();
