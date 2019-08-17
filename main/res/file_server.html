@@ -7,27 +7,31 @@
 </head>
 
 <body>
-  <h1>File Server</h1>
-  <p>Notice: Cannot delete a not-empty directory.</p>
 
-  <hr>
+<h1>File Server</h1>
+<p>
+  You can create a new directory just under an existing directory.<br />
+  You cannot delete a non-empty directory.
+</p>
 
-  <div>
-    <label for="dir">Directory: </label>
-    <input id="dir" type="text" size="32" value="/sd" /> /
-    <input id="mkdir" type="text" value="newdir" />
-    <input id="mkdir_button" type="button" value="make directory" />
-  </div>
-  <div><input id="upload_file" type="file" /></div>
-  <div><input id="upload_button" type="button" value="upload" /></div>
-  <div><progress id="upload_prog" max="100" value="0">0%</progress></div>
-  <div><p id="upload_msg"></p></div>
+<hr>
 
-  <hr>
+<div>
+  <label for="dir">Directory: </label>
+  <input id="dir" type="text" size="32" value="/sd" /> /
+  <input id="mkdir" type="text" value="newdir" />
+  <input id="mkdir_button" type="button" value="make directory" />
+</div>
+<div><input id="upload_file" type="file" /></div>
+<div><input id="upload_button" type="button" value="upload" /></div>
+<div><progress id="upload_prog" max="100" value="0">0%</progress></div>
+<div><p id="upload_msg"></p></div>
 
-  <div id="list_status">File List Status</div>
-  <ul id="file_list">
-  </ul>
+<hr>
+
+<div id="list_status">File List Status</div>
+<ul id="file_list">
+</ul>
 
 <script>
 var update_list = function() {
@@ -42,6 +46,7 @@ var update_list = function() {
       if (xhr.status === 200) {
         // parse json
         var list = JSON.parse(xhr.responseText);
+        list.sort();
         // remove all
         while (ul.firstChild) {
           ul.removeChild(ul.firstChild);
