@@ -189,51 +189,24 @@ bool HttpServer::is_running()
 
 void HttpServer::setup_pages()
 {
-	httpd_uri_t uri_index_get {
+	httpd_uri_t uri_index {
 		.uri      = "/",
 		.method   = HTTP_GET,
 		.handler  = page_script,
 		.user_ctx = this,
 	};
-	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_index_get));
-	httpd_uri_t uri_index_post {
-		.uri      = "/",
-		.method   = HTTP_POST,
-		.handler  = page_script,
-		.user_ctx = this,
-	};
-	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_index_post));
+	uri_index.method = HTTP_GET;
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_index));
+	uri_index.method = HTTP_POST;
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_index));
 
-	httpd_uri_t uri_recovery_get {
+	httpd_uri_t uri_recovery {
 		.uri      = "/recovery",
 		.method   = HTTP_GET,
-		.handler  = page_recovery_get,
+		.handler  = page_recovery,
 		.user_ctx = this,
 	};
-	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_get));
-	httpd_uri_t uri_recovery_get2 {
-		.uri      = "/recovery2",
-		.method   = HTTP_GET,
-		.handler  = page_recovery_get2,
-		.user_ctx = this,
-	};
-	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_get2));
-
-	httpd_uri_t uri_recovery_post {
-		.uri      = "/recovery",
-		.method   = HTTP_POST,
-		.handler  = page_recovery_post,
-		.user_ctx = this,
-	};
-	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_post));
-
-	httpd_uri_t uri_recovery_delete {
-		.uri      = "/recovery",
-		.method   = HTTP_DELETE,
-		.handler  = page_recovery_delete,
-		.user_ctx = this,
-	};
-	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_delete));
+	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery));
 
 	httpd_uri_t uri_recovery_file {
 		.uri      = "/recovery/file",
@@ -241,6 +214,7 @@ void HttpServer::setup_pages()
 		.handler  = page_recovery_file,
 		.user_ctx = this,
 	};
+	uri_recovery_file.method = HTTP_GET;
 	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_file));
 	uri_recovery_file.method = HTTP_POST;
 	ESP_ERROR_CHECK(httpd_register_uri_handler(m_handle, &uri_recovery_file));
@@ -255,6 +229,55 @@ void HttpServer::setup_pages()
 		m_handle, &uri_recovery_download));
 }
 
+// send res/file_server.html
+esp_err_t HttpServer::page_recovery(httpd_req_t *req)
+{
+	return httpd_resp_send(req, (const char *)file_server_html_start,
+		file_server_html_end - file_server_html_start);
+}
+
+// file download
+esp_err_t HttpServer::page_recovery_download(httpd_req_t *req)
+{
+	esp_err_t ret;
+
+	char query[PATH_MAX];
+	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
+	if (ret != ESP_OK) {
+		return send_http_error(req, 400, "File path query required");
+	}
+	url_decode(query);
+	if (!is_valid_filepath(query)) {
+		return send_http_error(req, 400, "Invalid file path");
+	}
+	printf("download: %s\n", query);
+
+	const char *mime = search_mime_type(query);
+	httpd_resp_set_type(req, mime);
+
+	auto fp_del = [](FILE *fp) {
+		fclose(fp);
+	};
+	std::unique_ptr<FILE, decltype(fp_del)> fp{fopen(query, "rb"), fp_del};
+	if (fp == nullptr) {
+		return send_http_error(req, 404);
+	}
+
+	auto buf = std::unique_ptr<uint8_t[]>(
+		new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
+	if (buf == nullptr) {
+		return send_http_error(req, 500, "Memory error");
+	}
+
+	size_t read_size;
+	while ((read_size = fread(buf.get(), 1, HTTP_IO_BUF_SIZE, fp.get())) > 0) {
+		httpd_resp_send_chunk(req, (const char *)buf.get(), read_size);
+	}
+
+	return httpd_resp_send_chunk(req, nullptr, 0);
+}
+
+// REST root
 esp_err_t HttpServer::page_recovery_file(httpd_req_t *req)
 {
 	esp_err_t ret;
@@ -474,303 +497,6 @@ esp_err_t HttpServer::file_del(httpd_req_t *req, const char *path)
 	}
 
 	return httpd_resp_send(req, "", 0);
-}
-
-
-esp_err_t HttpServer::page_recovery_download(httpd_req_t *req)
-{
-	esp_err_t ret;
-
-	char query[PATH_MAX];
-	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
-	if (ret != ESP_OK) {
-		return send_http_error(req, 400, "File path query required");
-	}
-	url_decode(query);
-	if (!is_valid_filepath(query)) {
-		return send_http_error(req, 400, "Invalid file path");
-	}
-	printf("download: %s\n", query);
-
-	const char *mime = search_mime_type(query);
-	httpd_resp_set_type(req, mime);
-
-	auto fp_del = [](FILE *fp) {
-		fclose(fp);
-	};
-	std::unique_ptr<FILE, decltype(fp_del)> fp{fopen(query, "rb"), fp_del};
-	if (fp == nullptr) {
-		return send_http_error(req, 404);
-	}
-
-	auto buf = std::unique_ptr<uint8_t[]>(
-		new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
-	if (buf == nullptr) {
-		return send_http_error(req, 500, "Memory error");
-	}
-
-	size_t read_size;
-	while ((read_size = fread(buf.get(), 1, HTTP_IO_BUF_SIZE, fp.get())) > 0) {
-		httpd_resp_send_chunk(req, (const char *)buf.get(), read_size);
-	}
-
-	return httpd_resp_send_chunk(req, nullptr, 0);
-}
-
-esp_err_t HttpServer::page_recovery_get2(httpd_req_t *req)
-{
-	return httpd_resp_send(req, (const char *)file_server_html_start,
-		file_server_html_end - file_server_html_start);
-}
-
-esp_err_t HttpServer::page_recovery_get(httpd_req_t *req)
-{
-	esp_err_t ret;
-	int iret;
-
-	char query[HTTP_GET_QUERY_MAX];
-	ret = httpd_req_get_url_query_str(req, query, sizeof(query));
-	if (ret == ESP_OK) {
-		// query on, download mode
-		url_decode(query);
-		if (!is_valid_filepath(query)) {
-			return send_http_error(req, 400);
-		}
-
-		char full_path[HTTP_FILE_PATH_MAX];
-		iret = snprintf(full_path, sizeof(full_path),
-			"%s%s", HTTP_FILE_ROOT, query);
-		if (iret >= sizeof(full_path)) {
-			return send_http_error(req, 500);
-		}
-		printf("download: %s\n", full_path);
-
-		const char *mime = search_mime_type(query);
-		httpd_resp_set_type(req, mime);
-
-		SDFile file = SD.open(full_path, FILE_READ);
-		if (!file) {
-			return send_http_error(req, 500);
-		}
-
-		auto buf = std::unique_ptr<uint8_t[]>(
-			new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
-		if (buf == nullptr) {
-			return send_http_error(req, 500);
-		}
-		size_t read_size;
-		while ((read_size = file.read(buf.get(), HTTP_IO_BUF_SIZE)) > 0) {
-			httpd_resp_send_chunk(req, (const char *)buf.get(), read_size);
-		}
-
-		httpd_resp_send_chunk(req, nullptr, 0);
-		return ESP_OK;
-	}
-
-	static const char Page0[] =
-R"(<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>File Server</title>
-</head>
-<body>
-  <h1>File Server</h1>
-)";
-	httpd_resp_send_chunk(req, Page0, sizeof(Page0) - 1);
-
-	char size_msg[128];
-	double total = SD.totalBytes() / 1024.0 / 1024.0 / 1024.0;
-	double used = SD.usedBytes() / 1024.0 / 1024.0 / 1024.0;
-	double ratio = used * 100.0 / total;
-	snprintf(size_msg, sizeof(size_msg),
-		"  <p>%.2f / %.2f GiB used (%.2f%%)</p>\n",
-		used, total, ratio);
-	httpd_resp_send_chunk(req, size_msg, strlen(size_msg));
-
-	static const char Page1[] =
-R"(
-  <div><input id="upload_file" type="file" /></div>
-  <div><input id="upload_button" type="button" value="upload" /></div>
-  <div><progress id="upload_prog" max="100" value="0" /></div>
-  <div><p id="upload_msg"></p></div>
-
-  <hr>
-
-  <ul>
-)";
-	httpd_resp_send_chunk(req, Page1, sizeof(Page1) - 1);
-
-	// send file list
-	SDFile dir = SD.open(HTTP_FILE_ROOT, FILE_READ);
-	if (!dir) {
-		return send_http_error(req, 500);
-	}
-	while(true) {
-		SDFile entry = dir.openNextFile();
-		if (!entry) {
-			break;
-		}
-		if (entry.isDirectory()) {
-			continue;
-		}
-		const char *name = entry.name() + strlen(dir.name());
-		if (!is_valid_filepath(name)) {
-			continue;
-		}
-		char buf[HTTP_FILE_NAME_MAX * 3 + 128];
-		iret = snprintf(buf, sizeof(buf),
-			"    <li><input type='button' value='Delete' "
-			"onClick='del_file(\"%s\");' />&nbsp;<a href='?%s'>%s</a></li>\n",
-			name, name, name);
-		if (iret >= sizeof(buf)) {
-			return send_http_error(req, 500);
-		}
-		httpd_resp_send_chunk(req, buf, strlen(buf));
-	}
-
-	static const char Page2[] =
-R"(
-  </ul>
-<script>
-var post_file = function(upload_file) {
-  var content_type = upload_file.type;
-  content_type = (content_type == "") ?
-    "application/octet-stream" : content_type;
-  var file_name = upload_file.name;
-  var msg = document.getElementById("upload_msg");
-
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', './recovery', true);
-  xhr.setRequestHeader('Content-type', content_type);
-  xhr.setRequestHeader('X-FILE-NAME', file_name);
-
-  var progress = document.getElementById("upload_prog");
-  xhr.onreadystatechange = function () {
-    if(xhr.readyState == 4) {
-      if (xhr.status === 200) {
-        msg.innerText = xhr.responseText;
-        setTimeout(function() { location.reload(true); }, 1000);
-      }
-      else {
-        msg.innerText = "error: " + xhr.statusText;
-      }
-    }
-  };
-  xhr.upload.onprogress = function(e) {
-    if (e.lengthComputable) {
-      progress.value = (e.loaded / e.total) * 100;
-    }
-  };
-  xhr.send(upload_file);
-};
-
-var del_file = function(delete_file) {
-  var xhr = new XMLHttpRequest();
-  xhr.open('DELETE', './recovery', false);
-  xhr.setRequestHeader('X-FILE-NAME', delete_file);
-  // blocking
-  xhr.send(upload_file);
-  location.reload(true);
-};
-
-document.getElementById("upload_button").addEventListener(
-  "click",
-  function() {
-    var element_file = document.getElementById("upload_file");
-    var upload_file = element_file.files[0];
-    post_file(upload_file);
-  },
-  false);
-</script>
-
-</body>
-</html>
-)";
-	httpd_resp_send_chunk(req, Page2, sizeof(Page2) - 1);
-	httpd_resp_send_chunk(req, nullptr, 0);
-	return ESP_OK;
-}
-
-esp_err_t HttpServer::page_recovery_post(httpd_req_t *req)
-{
-	esp_err_t ret;
-	int iret;
-
-	char name[HTTP_FILE_NAME_MAX];
-	ret = httpd_req_get_hdr_value_str(req, "X-FILE-NAME", name, sizeof(name));
-	if (ret != ESP_OK) {
-		// not found or too long
-		printf("NO X-FILE-NAME: %d\n", ret);
-		return send_http_error(req, 400);
-	}
-	if (!is_valid_filepath(name)) {
-		printf("invalid file name: %s\n", name);
-		return send_http_error(req, 400);
-	}
-
-	char full_path[HTTP_FILE_PATH_MAX];
-	iret = snprintf(full_path, sizeof(full_path),
-		"%s%s", HTTP_FILE_ROOT, name);
-	if (iret >= sizeof(full_path)) {
-		return send_http_error(req, 500);
-	}
-	printf("upload: %s\n", full_path);
-	SDFile file = SD.open(full_path, FILE_WRITE);
-	if (!file) {
-		return send_http_error(req, 500);
-	}
-
-	auto buf = std::unique_ptr<uint8_t[]>(
-		new(std::nothrow) uint8_t[HTTP_IO_BUF_SIZE]);
-	if (buf == nullptr) {
-		return send_http_error(req, 500);
-	}
-	size_t rest = req->content_len;
-	while (rest > 0) {
-		size_t recv_size = httpd_req_recv(
-			req, (char *)buf.get(), min(rest, HTTP_IO_BUF_SIZE));
-		if (recv_size > 0) {
-			rest -= recv_size;
-			file.write(buf.get(), recv_size);
-		}
-		else {
-			return ESP_FAIL;
-		}
-	}
-	httpd_resp_send(req, "", 0);
-	return ESP_OK;
-}
-
-esp_err_t HttpServer::page_recovery_delete(httpd_req_t *req)
-{
-	esp_err_t ret;
-	int iret;
-
-	char name[HTTP_FILE_NAME_MAX];
-	ret = httpd_req_get_hdr_value_str(req, "X-FILE-NAME", name, sizeof(name));
-	if (ret != ESP_OK) {
-		// not found or too long
-		return send_http_error(req, 400);
-	}
-	if (!is_valid_filepath(name)) {
-		return send_http_error(req, 400);
-	}
-
-	char full_path[HTTP_FILE_PATH_MAX];
-	iret = snprintf(full_path, sizeof(full_path),
-		"%s%s", HTTP_FILE_ROOT, name);
-	if (iret >= sizeof(full_path)) {
-		return send_http_error(req, 500);
-	}
-
-	printf("delete: %s\n", full_path);
-	if (!SD.remove(full_path)) {
-		return send_http_error(req, 400);
-	}
-
-	httpd_resp_send(req, "", 0);
-	return ESP_OK;
 }
 
 esp_err_t HttpServer::page_script(httpd_req_t *req)
