@@ -1,5 +1,6 @@
 import os
 import sys
+import collections
 import glob
 import pathlib
 import requests
@@ -114,13 +115,25 @@ cmd_table = {
 	'upload'		: upload_cmd,
 	'initialize'	: initialize_cmd,
 }
+help_text = '''
+list <ipaddr>
+	Get file and directory list.
+
+upload <ipaddr> <src_dir> [<dst_dir>]
+	dst_dir default = "/sd/"
+	Upload all files and directories under <stc_dir> to <dst_dir>.
+
+initialize <ipaddr>
+	Delete all files and directories.
+'''
 
 def main(argv):
-	if len(argv) < 2:
-		print('sd.py <ipaddr> <cmd> ...')
+	if len(argv) < 3:
+		print('sd.py <cmd> <ipaddr> ...')
+		print(help_text)
 		exit(1)
-	ipaddr = argv[1]
-	cmd = argv[2]
+	cmd = argv[1]
+	ipaddr = argv[2]
 	arg = argv[3:]
 	if not cmd_table[cmd]:
 		print('Command not found: {cmd}'.format(cmd=cmd))
