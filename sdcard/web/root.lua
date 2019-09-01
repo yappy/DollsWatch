@@ -1,4 +1,4 @@
-local webutil = require("webutil")
+local webutil = require("web.webutil")
 
 -- query string to table
 local function parse_query(query)

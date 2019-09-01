@@ -533,7 +533,7 @@ esp_err_t HttpServer::page_script(httpd_req_t *req)
 
 	lua_pushboolean(L, 1);
 	lua_setglobal(L, "WEBAPP");
-	ok = lua.eval_file("/sd/root.lua");
+	ok = lua.eval_file(HTTP_LUA_INDEX);
 	if (!ok) {
 		return send_http_error(req, 500);
 	}
@@ -583,7 +583,7 @@ esp_err_t HttpServer::page_script(httpd_req_t *req)
 		lua_settop(L, 0);
 		lua_getglobal(L, "loop");
 		// push args
-		lua_pushliteral(L, "/sd/");
+		lua_pushstring(L, HTTP_LUA_ROOT);
 		lua_pushstring(L, method);
 		lua_pushstring(L, query);
 		lua_pushinteger(L, content_len);

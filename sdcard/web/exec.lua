@@ -1,5 +1,5 @@
-local common = require("common")
-local webutil = require("webutil")
+local common = require("web.common")
+local webutil = require("web.webutil")
 
 local GET_DATA = [[
 <!DOCTYPE html>
