@@ -327,8 +327,9 @@ void WifiClientApp::load_config_file()
 {
 	m_conf_count = 0;
 
-	SDFile file = SD.open("/wifi.txt", FILE_READ);
+	SDFile file = SD.open(WIFI_CONF_FILE, FILE_READ);
 	if (!file) {
+		printf("%s not found!\n", WIFI_CONF_FILE);
 		return;
 	}
 	auto read_line = [&file](char *buf, size_t bufsize) {
