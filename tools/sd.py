@@ -17,9 +17,9 @@ def list_cmd(url, arg):
 	}
 	resp = requests.get(url + 'file', headers=headers)
 	check_resp(resp)
-
-	j = resp.json()
-	for path in j:
+	target_files = resp.json()
+	target_files.sort()
+	for path in target_files:
 		print(path)
 
 def upload_cmd(url, arg):
@@ -74,9 +74,41 @@ def upload_cmd(url, arg):
 			check_resp(resp)
 			print('OK')
 
+def initialize_cmd(url, arg):
+	headers = {
+		'FILE-CMD': 'LIST'
+	}
+	resp = requests.get(url + 'file', headers=headers)
+	check_resp(resp)
+	target_files = resp.json()
+	target_files.sort()
+
+	# Delete all files at first
+	for entry in target_files:
+		if not entry.endswith('/'):
+			print('Delete file:', entry)
+			headers = {
+				'FILE-CMD': 'DELETE',
+				'FILE-PATH': entry,
+			}
+			resp = requests.post(url + 'file', headers=headers)
+			check_resp(resp)
+	# Then delete all directories
+	for entry in target_files:
+		if entry.endswith('/'):
+			print('Delete dir:', entry)
+			headers = {
+				'FILE-CMD': 'DELETE',
+				# Must remove the last '/'
+				'FILE-PATH': entry.rstrip('/'),
+			}
+			resp = requests.post(url + 'file', headers=headers)
+			check_resp(resp)
+
 cmd_table = {
-	'list'	: list_cmd,
-	'upload': upload_cmd,
+	'list'			: list_cmd,
+	'upload'		: upload_cmd,
+	'initialize'	: initialize_cmd,
 }
 
 def main(argv):
