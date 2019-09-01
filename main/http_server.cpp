@@ -108,7 +108,7 @@ ASIS:
 					return false;
 				}
 			}
-			else if (*str == '/' || *str == '_' || *str == '-') {
+			else if (*str == '/' || *str == '_' || *str == '-' || *str == ' ') {
 				// OK
 			}
 			else {
