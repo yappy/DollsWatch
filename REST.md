@@ -63,9 +63,9 @@ HTML top page
 ### POST /recovery/file CMD=MKDIR
 * IN (HTTP header)
   * FILE-CMD: MKDIR
-  * FILE-PATH: file path
+  * FILE-PATH: directory path
 
 ### POST /recovery/file CMD=DELETE
 * IN (HTTP header)
   * FILE-CMD: DELETE
-  * FILE-PATH: file path
+  * FILE-PATH: file/dir path

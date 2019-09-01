@@ -26,6 +26,15 @@ def upload_cmd(url, arg):
 	src_dir = pathlib.Path(arg[0]).resolve()
 	dst_dir = arg[1] if len(arg) >= 2 else '/sd/'
 	print('src_root=', src_dir)
+
+	# Get file list in the target
+	headers = {
+		'FILE-CMD': 'LIST'
+	}
+	resp = requests.get(url + 'file', headers=headers)
+	check_resp(resp)
+	target_files = resp.json()
+
 	# Get all files under src_dir/
 	all = list(src_dir.glob("**/*"))
 	for entry in all:
@@ -42,6 +51,28 @@ def upload_cmd(url, arg):
 		target_path = dst_dir + \
 			str(entry.relative_to(src_dir)).replace(os.sep, '/')
 		print('->', cmd, target_path)
+
+		if cmd == 'MKDIR':
+			if not target_path + '/' in target_files:
+				headers = {
+					'FILE-CMD': 'MKDIR',
+					'FILE-PATH': target_path,
+				}
+				resp = requests.post(url + 'file', headers=headers)
+				check_resp(resp)
+				print('OK')
+			else:
+				print('SKIP (already exist)')
+		elif cmd == 'UPLOAD':
+			headers = {
+				'Content-Type': 'application/octet-stream',
+				'FILE-CMD': 'UPLOAD',
+				'FILE-PATH': target_path,
+			}
+			with entry.open(mode='rb') as f:
+				resp = requests.post(url + 'file', data=f, headers=headers)
+			check_resp(resp)
+			print('OK')
 
 cmd_table = {
 	'list'	: list_cmd,
