@@ -4,6 +4,10 @@ import glob
 import pathlib
 import requests
 
+# >= python 3.5
+assert sys.version_info[0] > 3 or \
+	(sys.version_info[0] >= 3 and sys.version_info[1] >= 5)
+
 def check_resp(resp):
 	try:
 		resp.raise_for_status()
