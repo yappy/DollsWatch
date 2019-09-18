@@ -44,7 +44,6 @@ install:
 
 before_script:
   # Apply patches to sub components
-  - patch -p1 -d components/M5Stack/ < patch/M5Stack.patch
   - patch -p1 -d components/arduino-esp32/libraries/AzureIoT/ < patch/AzureIoT.patch
 
 script:

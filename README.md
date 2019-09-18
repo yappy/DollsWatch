@@ -115,8 +115,5 @@ https://m5stack.com/pages/download
 ### Cannot write flash
 Attach a capacitor (e.g. 2.2uF) to RST - GND pin.
 
-### Build error in M5Stack build
-Apply M5Stack.patch. (see .travis.yml)
-
 ### Build error in AzureIoT release build
 Apply AzureIoT.patch. (see .travis.yml)
