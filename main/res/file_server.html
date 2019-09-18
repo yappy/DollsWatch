@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <title>File Server</title>
+</head>
+
+<body>
+
+<h1>File Server</h1>
+<p>
+  You can create a new directory just under an existing directory.<br />
+  You cannot delete a non-empty directory.
+</p>
+
+<hr>
+
+<div>
+  <label for="dir">Directory: </label>
+  <input id="dir" type="text" size="32" value="/sd" /> /
+</div>
+<div>
+  <input id="mkdir" type="text" size="16" value="newdir" />
+  <input id="mkdir_button" type="button" value="make directory" />
+</div>
+<div>
+  <input id="upload_file" type="file" />
+  <input id="upload_button" type="button" value="upload" />
+  <progress id="upload_prog" max="100" value="0">0%</progress>
+</div>
+<div><p id="upload_msg"></p></div>
+
+<hr>
+
+<div id="list_status">File List Status</div>
+<ul id="file_list">
+</ul>
+
+<script>
+var update_list = function() {
+  var status = document.getElementById("list_status");
+  var ul = document.getElementById("file_list");
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', '/recovery/file', true);
+  xhr.setRequestHeader('FILE-CMD', "LIST");
+  xhr.onreadystatechange = function () {
+    if(xhr.readyState == 4) {
+      if (xhr.status === 200) {
+        // parse json
+        var list = JSON.parse(xhr.responseText);
+        list.sort();
+        // remove all
+        while (ul.firstChild) {
+          ul.removeChild(ul.firstChild);
+        }
+        // add list element
+        list.forEach(function(path) {
+          var dir = path;
+          var last_slash = path.lastIndexOf("/");
+          if (last_slash >= 0) {
+            dir = path.substring(0, last_slash);
+          }
+
+          var li = document.createElement("li");
+          var setdir_button = document.createElement("input");
+          setdir_button.type = "button";
+          setdir_button.value = "Set Dir";
+          setdir_button.onclick = function() {
+            document.getElementById("dir").value = dir;
+          }
+          var del_button = document.createElement("input");
+          del_button.type = "button";
+          del_button.value = "Delete";
+          del_button.onclick = function() {
+            del_file(path);
+          };
+          var link = document.createElement("a");
+          link.href = "/recovery/download?" + encodeURIComponent(path);
+          link.appendChild(document.createTextNode(path));
+
+          li.appendChild(setdir_button);
+          li.appendChild(del_button);
+          li.appendChild(link);
+          ul.appendChild(li);
+        });
+        status.innerText = "Files: " + list.length;
+      }
+      else {
+        status.innerText = "error: " + xhr.statusText;
+      }
+    }
+  };
+  status.innerText = "Updating file list...";
+  xhr.send();
+};
+
+var post_file = function(upload_file) {
+  var content_type = upload_file.type;
+  content_type = (content_type == "") ?
+    "application/octet-stream" : content_type;
+  var file_name = upload_file.name;
+  var file_path = document.getElementById("dir").value + "/" + file_name;
+  var msg = document.getElementById("upload_msg");
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', './recovery/file', true);
+  xhr.setRequestHeader('Content-type', content_type);
+  xhr.setRequestHeader('FILE-CMD', "UPLOAD");
+  xhr.setRequestHeader('FILE-PATH', file_path);
+
+  var progress = document.getElementById("upload_prog");
+  xhr.onreadystatechange = function () {
+    if(xhr.readyState == 4) {
+      if (xhr.status === 200) {
+        msg.innerText = xhr.responseText;
+        update_list();
+      }
+      else {
+        msg.innerText = xhr.status + " " + xhr.statusText + ": " +
+          xhr.responseText;
+      }
+    }
+  };
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) {
+      progress.value = (e.loaded / e.total) * 100;
+    }
+  };
+  xhr.send(upload_file);
+};
+
+var mkdir = function(path) {
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', './recovery/file', false);
+  xhr.setRequestHeader('FILE-CMD', "MKDIR");
+  xhr.setRequestHeader('FILE-PATH', path);
+  // blocking
+  xhr.send(upload_file);
+  if (xhr.status == 200) {
+    update_list();
+  }
+  else {
+    alert(xhr.status + " " + xhr.statusText + ": " + xhr.responseText);
+  }
+};
+
+var del_file = function(delete_file) {
+  // remove last "/"
+  if (delete_file.endsWith("/")) {
+    delete_file = delete_file.substring(0, delete_file.length - 1);
+  }
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('POST', './recovery/file', false);
+  xhr.setRequestHeader('FILE-CMD', "DELETE");
+  xhr.setRequestHeader('FILE-PATH', delete_file);
+  // blocking
+  xhr.send(upload_file);
+  if (xhr.status == 200) {
+    update_list();
+  }
+  else {
+    alert(xhr.status + " " + xhr.statusText + ": " + xhr.responseText);
+  }
+};
+
+document.getElementById("upload_button").addEventListener(
+  "click",
+  function() {
+    var element_file = document.getElementById("upload_file");
+    var upload_file = element_file.files[0];
+    post_file(upload_file);
+  },
+  false);
+document.getElementById("mkdir_button").addEventListener(
+  "click",
+  function() {
+    var mkdir_path = document.getElementById("dir").value + "/" +
+      document.getElementById("mkdir").value;
+    mkdir(mkdir_path);
+  },
+  false);
+
+// initial update
+update_list();
+</script>
+
+</body>
+
+</html>

@@ -1,5 +1,5 @@
-local common = require("common")
-local webutil = require("webutil")
+local common = require("web.common")
+local webutil = require("web.webutil")
 
 local GET_TEMPLATE = [[
 <!DOCTYPE html>
@@ -48,7 +48,7 @@ local function get(lua_root, query)
 	end
 
 	local file_name = query["f"]
-	local f = io.open(lua_root .. file_name, "r")
+	local f = io.open(file_name, "r")
 	if not f then
 		return webutil.response(400, "text/plain", nil, "Cannot open")
 	end

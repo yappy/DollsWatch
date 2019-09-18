@@ -43,7 +43,7 @@ void ClockApp::frame()
 
 void ClockApp::redraw()
 {
-	const char *FileName = "/yappy_house_240.jpg";
+	const char *FileName = "/ui/yappy_house_240.jpg";
 
 	M5.Lcd.clear();
 
