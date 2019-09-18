@@ -18,7 +18,7 @@ env:
     # ESP32 toolchain archive file name
     - TOOLCHAIN=xtensa-esp32-elf-linux64-1.22.0-80-g6c4433a-5.2.0.tar.gz
     # ESP-IDF version git tag name
-    - IDF_VER=v3.2.2
+    - IDF_VER=v3.3
   matrix:
     # Default configuration switch
     - SDKCONFIG_DEFAULTS=sdkconfig.defaults
@@ -44,7 +44,6 @@ install:
 
 before_script:
   # Apply patches to sub components
-  - patch -p1 -d components/M5Stack/ < patch/M5Stack.patch
   - patch -p1 -d components/arduino-esp32/libraries/AzureIoT/ < patch/AzureIoT.patch
 
 script:

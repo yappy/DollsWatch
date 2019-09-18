@@ -50,18 +50,22 @@ $ python3 tools/sd.py initialize
 ----
 
 ## How to build
+### Check the required ESP-IDF version
+See `IDF_VER_REQUIRED` in Makefile or `IDF_VER` in .travis.yml.
+It is represented as <IDF_VER> in the following sections.
 
 ### Install ESP-IDF
 See ESP-IDF Programming Guide "Get Started" page.
-* https://docs.espressif.com/projects/esp-idf/en/v3.2.2/
-* https://docs.espressif.com/projects/esp-idf/en/v3.2.2/get-started/index.html
+* https://docs.espressif.com/projects/esp-idf/en/<IDF_VER>/
+* https://docs.espressif.com/projects/esp-idf/en/<IDF_VER>/get-started/index.html
 
 Steps:
 * Download and extract toolchain.
   * Set `$PATH` to the toolchain dir.
 * git clone the esp-idf.
-  * Set `$IDF_PATH` to the esp-idf dir.
-  * Checkout the stable version tag. See `IDF_VER_REQUIRED` in Makefile.
+  * `git clone https://github.com/espressif/esp-idf.git`
+  * Set env `$IDF_PATH` to the esp-idf dir.
+  * `git checkout <IDF_VER>`
   * `git submodule update --init --recursive`
 * Install dependencies.
   * flex, bison, python, etc. See the guide.
@@ -110,9 +114,6 @@ https://m5stack.com/pages/download
 
 ### Cannot write flash
 Attach a capacitor (e.g. 2.2uF) to RST - GND pin.
-
-### Build error in M5Stack build
-Apply M5Stack.patch. (see .travis.yml)
 
 ### Build error in AzureIoT release build
 Apply AzureIoT.patch. (see .travis.yml)

@@ -20,7 +20,7 @@ $(info VER arduino-esp32: $(ARDUINO_VER))
 $(info VER M5Stack: $(M5STACK_VER))
 
 # ESP-IDF version check
-IDF_VER_REQUIRED := v3.2.2
+IDF_VER_REQUIRED := v3.3
 ifneq ($(IDF_VER), $(IDF_VER_REQUIRED))
 $(error ESP-IDF version error: $(IDF_VER) != $(IDF_VER_REQUIRED))
 endif
