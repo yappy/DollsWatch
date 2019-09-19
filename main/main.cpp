@@ -4,17 +4,20 @@
 #include "app_info.h"
 #include "app_clock.h"
 #include "app_wifi_client.h"
+#include "app_bt_client.h"
 
 namespace {
 	InfoApp s_info;
 	ClockApp s_clock;
 	WifiClientApp s_wifi_client;
+	BleGattClientApp s_bt_client;
 
 	uint32_t s_app_idx = 2;
-	std::array<App *, 3> s_app_list = {
+	std::array<App *, 4> s_app_list = {
 		&s_info,
 		&s_clock,
 		&s_wifi_client,
+		&s_bt_client,
 	};
 
 	inline App &cur_app()
