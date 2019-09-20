@@ -6,7 +6,7 @@
 
 enum class BtStatus {
 	STOP,
-	START,
+	ACTIVE,
 };
 
 class BleGattClientApp : public App {
@@ -19,7 +19,7 @@ public:
 	void redraw() override;
 
 private:
-	BtStatus m_status;
+	BtStatus m_status = BtStatus::STOP;
 
 	void start();
 	void stop();
