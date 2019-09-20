@@ -2,10 +2,6 @@
 #define APP_BT_CLIENT_H_
 
 #include "app.h"
-#include <esp_system.h>
-#include <esp_bt.h>
-#include <esp_event.h>
-#include <freertos/semphr.h>
 
 
 enum class BtStatus {
